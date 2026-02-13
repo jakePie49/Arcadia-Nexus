@@ -2,310 +2,370 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcadia Nexus v11.1</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D 2024 Character Sheet: The Brawler</title>
     <style>
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        body { 
-            overscroll-behavior-y: none; 
-            background-color: #020617;
-            font-family: ui-sans-serif, system-ui, sans-serif;
-            color: #f1f5f9;
+        :root {
+            --primary-color: #8B0000; /* Dark Red for headers */
+            --border-color: #333;
+            --bg-color: #fdfbf7; /* Paper color */
+            --box-bg: #fff;
         }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eee;
+            margin: 0;
+            padding: 20px;
+            color: #1a1a1a;
+        }
+        .sheet-container {
+            background-color: var(--bg-color);
+            width: 210mm; /* A4 width */
+            min-height: 297mm; /* A4 height */
+            margin: 0 auto;
+            padding: 30px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        h1, h2, h3 { margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        h2 { font-size: 14px; color: var(--border-color); border-bottom: 2px solid var(--border-color); margin-bottom: 5px; padding-bottom: 2px; }
         
-        .main-container { width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
-        @media (min-width: 1024px) {
-            .main-container { display: grid; grid-template-columns: 420px 1fr; align-items: start; gap: 2rem; }
+        /* Header Section */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .name-box { width: 35%; }
+        .name-box input { 
+            width: 100%; font-size: 24px; font-weight: bold; border: none; border-bottom: 1px solid #ccc; background: transparent; 
+            font-family: 'Georgia', serif;
+        }
+        .meta-data {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 60%;
+            background-color: rgba(0,0,0,0.03);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .field { display: flex; flex-direction: column; }
+        .field label { font-size: 9px; font-weight: bold; color: #666; text-transform: uppercase; }
+        .field span { font-weight: bold; font-size: 14px; }
+
+        /* Main Content Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 3 Columns */
+            gap: 20px;
+            flex-grow: 1;
         }
 
-        .tab-active { color: #22d3ee; border-bottom: 2px solid #22d3ee; }
-        @keyframes pulse-cyan { 0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px #22d3ee); } 50% { opacity: 0.4; } }
-        .sync-active { animation: pulse-cyan 1.5s infinite; }
+        /* Column 1: Stats & Skills */
+        .stats-column { display: flex; flex-direction: column; gap: 15px; }
+        .stat-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 5px 10px;
+            background: var(--box-bg);
+            margin-bottom: 8px;
+        }
+        .stat-label { font-weight: bold; font-size: 12px; display: flex; flex-direction: column; align-items: center; width: 40px; }
+        .stat-mod { font-size: 20px; font-weight: bold; }
+        .stat-score { font-size: 10px; border: 1px solid #ccc; border-radius: 10px; padding: 2px 6px; margin-top: 2px; }
         
-        @keyframes aurora { 
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        .skills-list { font-size: 12px; }
+        .skill-row { display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding: 2px 0; }
+        .proficient { font-weight: bold; color: var(--primary-color); }
+        .skill-mod { font-family: monospace; }
+
+        /* Column 2: Combat */
+        .combat-column { display: flex; flex-direction: column; gap: 15px; }
+        .combat-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
         }
-        .ai-glow { 
-            background: linear-gradient(-45deg, #083344, #1e1b4b, #312e81, #164e63);
-            background-size: 400% 400%;
-            animation: aurora 15s ease infinite;
+        .ac-box, .init-box, .speed-box {
+            border: 2px solid var(--border-color);
+            border-radius: 50% 50% 10px 10px; /* Shield shape-ish */
+            width: 70px; height: 70px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--box-bg);
         }
+        .val-large { font-size: 24px; font-weight: bold; }
+        .val-label { font-size: 10px; text-transform: uppercase; }
+
+        .hp-box {
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            padding: 10px;
+            background: var(--box-bg);
+            text-align: center;
+        }
+
+        .attacks-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .attacks-table th { text-align: left; border-bottom: 2px solid #333; font-size: 10px; }
+        .attacks-table td { border-bottom: 1px solid #ccc; padding: 4px 0; }
+        .grapple-alert {
+            background-color: #ffeaea;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        /* Column 3: Features & Equipment */
+        .features-column { display: flex; flex-direction: column; gap: 15px; }
+        .feature-item { margin-bottom: 8px; font-size: 12px; }
+        .feature-name { font-weight: bold; display: block; }
+        
+        .equipment-list { font-size: 12px; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        
+        .inspiration-box {
+            display: flex; align-items: center; gap: 10px;
+            background: #eef; padding: 10px; border-radius: 5px; border: 1px solid #99a;
+        }
+
     </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex justify-center items-center lg:p-6">
-    <div id="root" class="h-full w-full flex justify-center items-center max-w-[1440px]"></div>
+<body>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-
-        const modelName = "gemini-2.5-flash-preview-09-2025";
-
-        const callGemini = async (prompt, systemInstruction, key) => {
-            if (!key) return "Oracle Offline: Key Missing in System Tab.";
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: systemInstruction }] }
-            };
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) throw new Error(`API Error: ${response.status}`);
-                const data = await response.json();
-                return data.candidates?.[0]?.content?.parts?.[0]?.text || "The Oracle is silent.";
-            } catch (error) {
-                return "Connection to the Arcadia Mind lost.";
-            }
-        };
-
-        const LOGIC = {
-            getMod: (s) => Math.floor((s - 10) / 2),
-            getLevel: (xp) => {
-                const table = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
-                for (let i = table.length - 1; i >= 0; i--) if (xp >= table[i]) return i + 1;
-                return 1;
-            },
-            getPB: (xp) => Math.ceil(LOGIC.getLevel(xp) / 4) + 1
-        };
-
-        const Icons = {
-            Sword: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M14.5 17.5 3 6 3 3 6 3 17.5 14.5m-4.5 4.5 6-6m-3 3 4 4"/></svg>,
-            Oracle: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.69 7.03"/><path d="M12 12l5.56 8.52"/><circle cx="12" cy="12" r="3"/></svg>,
-            Sparkle: (p) => <svg {...p} fill="currentColor" viewBox="0 0 24 24"><path d="M9 1l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6z"/></svg>,
-            Save: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/></svg>,
-            Shield: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-            Discord: (p) => <svg {...p} fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.23 10.23 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 1-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.419 0 1.334-.956 2.419-2.157-2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>,
-            Skull: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 10h.01M15 10h.01M12 2a8 8 0 0 0-8 8v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2a8 8 0 0 0-8-8zM8 22h8v-2a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2z"/></svg>
-        };
-
-        const defaultCharacter = {
-            meta: { name: "Randy 'Brawler' Marsh", race: "Human", class: "Fighter", xp: 0 },
-            stats: { str: 17, dex: 10, con: 15, int: 8, wis: 10, cha: 14 },
-            status: { hp: 14, hpMax: 14, conditions: [] },
-            attacks: [{ id: 1, name: "Heavy Iron Shovel", dmg: "1d8", base: "str", props: ["Versatile", "Topple"] }],
-            inventory: { webhook: "", apiKey: "" }
-        };
-
-        function App() {
-            // STATE INITIALIZATION WITH SAFETY CHECK
-            const [char, setChar] = useState(() => {
-                try {
-                    const s = localStorage.getItem('nexus_v111');
-                    return s ? JSON.parse(s) : defaultCharacter;
-                } catch (e) {
-                    return defaultCharacter; // Fallback if data is corrupted
-                }
-            });
-            const [view, setView] = useState('combat');
-            const [aiInput, setAiInput] = useState("");
-            const [aiResponse, setAiResponse] = useState("Greetings. I am the Oracle. Configure your API Key in System settings.");
-            const [isAiLoading, setIsAiLoading] = useState(false);
-
-            useEffect(() => {
-                localStorage.setItem('nexus_v111', JSON.stringify(char));
-            }, [char]);
-
-            const arb = useMemo(() => {
-                const lvl = LOGIC.getLevel(char.meta.xp);
-                const pb = LOGIC.getPB(char.meta.xp);
-                const mods = {}; Object.keys(char.stats).forEach(k => mods[k] = LOGIC.getMod(char.stats[k]));
-                return { lvl, pb, mods };
-            }, [char]);
-
-            const askOracle = async () => {
-                if (!aiInput.trim()) return;
-                setIsAiLoading(true);
-                const sysPrompt = `You are the Arcadia Oracle. Player: ${char.meta.name}, Level ${arb.lvl} ${char.meta.class}. HP: ${char.status.hp}/${char.status.hpMax}. Stats: STR ${char.stats.str}. Be brief, analytical, and remain in the Arcadia lore context.`;
-                const result = await callGemini(aiInput, sysPrompt, char.inventory.apiKey);
-                setAiResponse(result);
-                setAiInput("");
-                setIsAiLoading(false);
-            };
-
-            const updateHP = (val) => {
-                setChar(prev => ({
-                    ...prev,
-                    status: { ...prev.status, hp: Math.min(prev.status.hpMax, Math.max(0, prev.status.hp + val)) }
-                }));
-            };
-
-            const postDiscord = async () => {
-                if (!char.inventory.webhook) return alert("System Tab > Add Webhook!");
-                
-                const payload = {
-                    embeds: [{
-                        title: `🛡️ ${char.meta.name} | Status Report`,
-                        color: 0x22d3ee,
-                        fields: [
-                            { name: "HP", value: `**${char.status.hp}** / ${char.status.hpMax}`, inline: true },
-                            { name: "Level", value: `${arb.lvl} ${char.meta.class}`, inline: true },
-                            { name: "Conditions", value: char.status.conditions.length ? char.status.conditions.join(', ') : "None", inline: true}
-                        ],
-                        footer: { text: `Arcadia Nexus • ${new Date().toLocaleTimeString()}` }
-                    }]
-                };
-
-                try {
-                    await fetch(char.inventory.webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    alert("Report Transmitted.");
-                } catch (e) { alert("Discord Error. Check URL."); }
-            };
-
-            const handleExport = () => {
-                const blob = new Blob([JSON.stringify(char, null, 2)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `Arcadia_${char.meta.name}.json`; a.click();
-            };
-
-            return (
-                <div className="w-full h-full lg:h-[92vh] bg-slate-900 lg:rounded-[3rem] shadow-2xl border border-slate-800 flex flex-col overflow-hidden transition-all">
-                    
-                    {/* --- HEADER --- */}
-                    <div className="flex bg-slate-950 border-b border-slate-800 shrink-0 px-6 sm:px-12 justify-between items-center z-50">
-                        <div className="flex items-center gap-2 py-5">
-                            <Icons.Sword className="text-cyan-500" size={20} />
-                            <span className="font-black text-[11px] uppercase tracking-[0.3em] text-slate-500">Nexus v11.1</span>
-                        </div>
-                        <nav className="flex gap-4 sm:gap-10 h-full">
-                            {['combat', 'oracle', 'stats', 'system'].map(v => (
-                                <button key={v} onClick={() => setView(v)} className={`py-5 px-3 text-[10px] font-black uppercase tracking-widest transition-all ${view === v ? 'tab-active' : 'text-slate-600'}`}>{v}</button>
-                            ))}
-                        </nav>
-                        <Icons.Oracle size={20} className={isAiLoading ? 'animate-spin text-indigo-400' : 'text-slate-800'} />
-                    </div>
-
-                    <main className="flex-1 overflow-y-auto p-4 lg:p-14 scrollbar-hide">
-                        <div className="max-w-6xl mx-auto">
-                            
-                            {view === 'combat' && (
-                                <div className="main-container">
-                                    <div className="glass p-10 rounded-[2.5rem] border border-slate-800 shadow-xl">
-                                        <h1 className="text-4xl font-black text-white leading-none mb-1 tracking-tighter">{char.meta.name}</h1>
-                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mb-10">Lvl {arb.lvl} • {char.meta.class}</p>
-                                        
-                                        <div className="flex justify-between items-center bg-slate-950/40 p-8 rounded-[2rem] border border-slate-800 mb-8">
-                                            <button onClick={() => updateHP(-1)} className="w-16 h-16 bg-slate-800 rounded-3xl border border-slate-700 text-red-500 font-black text-3xl active:scale-95 transition-all">-</button>
-                                            <div className="text-center">
-                                                <span className="text-7xl font-black text-white">{char.status.hp}</span>
-                                                <p className="text-[10px] text-slate-600 font-black uppercase mt-2 tracking-widest">/ {char.status.hpMax} MAX</p>
-                                            </div>
-                                            <button onClick={() => updateHP(1)} className="w-16 h-16 bg-slate-800 rounded-3xl border border-slate-700 text-green-500 font-black text-3xl active:scale-95 transition-all">+</button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        {char.attacks.map(atk => (
-                                            <div key={atk.id} className="glass p-8 rounded-[2.5rem] border border-slate-800 flex justify-between items-center shadow-lg">
-                                                <div>
-                                                    <div className="text-2xl font-black text-white tracking-tight">{atk.name}</div>
-                                                    <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">{atk.props.join(' • ')}</div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-4xl font-black text-cyan-400 leading-none">+{arb.mods[atk.base] + arb.pb}</div>
-                                                    <div className="text-[9px] text-slate-600 font-black uppercase tracking-tighter mt-1 text-center">To Hit</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        <button onClick={postDiscord} className="w-full py-6 bg-indigo-900/10 border border-indigo-900/30 text-indigo-400 rounded-[2.5rem] flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest hover:bg-indigo-900/20 active:scale-[0.98] transition-all">
-                                            <Icons.Discord size={24} /> Transmit Report
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {view === 'oracle' && (
-                                <div className="max-w-4xl mx-auto space-y-8 animate-pop">
-                                    <div className="ai-glow p-1 rounded-[3.5rem] shadow-2xl">
-                                        <div className="bg-slate-950 rounded-[3.4rem] p-10 lg:p-14 min-h-[500px] flex flex-col justify-between">
-                                            <div className="prose prose-invert max-w-none">
-                                                <div className="flex items-center gap-4 mb-10">
-                                                    <Icons.Sparkle className="text-indigo-400 animate-pulse" size={28} />
-                                                    <span className="text-[11px] font-black uppercase tracking-[0.6em] text-indigo-500">Arcadia Mind Gateway</span>
-                                                </div>
-                                                <p className="text-slate-300 leading-relaxed font-medium italic text-xl">
-                                                    {isAiLoading ? "Processing query..." : aiResponse}
-                                                </p>
-                                            </div>
-                                            <div className="mt-14 flex gap-5">
-                                                <input 
-                                                    type="text" 
-                                                    value={aiInput}
-                                                    onChange={e => setAiInput(e.target.value)}
-                                                    onKeyDown={e => e.key === 'Enter' && askOracle()}
-                                                    placeholder="Query the Oracle..."
-                                                    className="flex-1 bg-slate-900 border-2 border-slate-800 rounded-[2rem] px-8 py-6 text-indigo-100 focus:outline-none focus:border-indigo-600 transition-all font-medium shadow-inner"
-                                                />
-                                                <button onClick={askOracle} disabled={isAiLoading} className="bg-indigo-600 text-white px-12 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-indigo-500 transition-all disabled:opacity-50 shadow-xl active:scale-95">Query</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {!char.inventory.apiKey && <p className="text-center text-red-500 text-xs font-bold uppercase tracking-widest">Oracle Offline: Add API Key in System Tab</p>}
-                                </div>
-                            )}
-
-                            {view === 'stats' && (
-                                <div className="glass p-12 rounded-[3.5rem] border border-slate-800 grid grid-cols-2 md:grid-cols-3 gap-10 shadow-2xl">
-                                    {Object.entries(char.stats).map(([s, val]) => (
-                                        <div key={s} className="text-center group">
-                                            <span className="text-[12px] font-black text-slate-500 uppercase block mb-4 group-hover:text-amber-500 transition-colors">{s}</span>
-                                            <span className="text-6xl font-black text-white leading-none tracking-tighter">{arb.mods[s]>=0?'+':''}{arb.mods[s]}</span>
-                                            <input type="number" value={char.stats[s]} onChange={e => setChar({...char, stats: {...char.stats, [s]: parseInt(e.target.value)||0}})} className="w-full bg-transparent text-[13px] text-slate-600 text-center font-black mt-4 outline-none focus:text-amber-400" />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {view === 'system' && (
-                                <div className="max-w-3xl mx-auto space-y-12 animate-pop">
-                                    <section className="glass p-12 rounded-[3.5rem] border border-slate-800 space-y-8 shadow-2xl">
-                                        <h3 className="text-[12px] font-black text-indigo-400 uppercase tracking-[0.5em] mb-4">Core Settings</h3>
-                                        
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] font-black text-slate-600 uppercase ml-6 tracking-widest">Gemini API Key (Oracle)</label>
-                                            <input type="password" placeholder="Paste Google AI Key Here..." value={char.inventory.apiKey || ""} onChange={e => setChar({...char, inventory: {...char.inventory, apiKey: e.target.value}})} className="w-full bg-slate-950 border-2 border-slate-800 p-6 rounded-[2.5rem] text-sm text-indigo-300 focus:border-indigo-600 transition-all font-mono shadow-inner" />
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] font-black text-slate-600 uppercase ml-6 tracking-widest">Discord Webhook</label>
-                                            <input type="text" placeholder="https://discord.com/api/webhooks..." value={char.inventory.webhook} onChange={e => setChar({...char, inventory: {...char.inventory, webhook: e.target.value}})} className="w-full bg-slate-950 border-2 border-slate-800 p-6 rounded-[2.5rem] text-sm text-indigo-300 focus:border-indigo-600 transition-all font-mono shadow-inner" />
-                                        </div>
-                                    </section>
-                                    
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
-                                        <button onClick={handleExport} className="py-12 bg-slate-800 border-2 border-slate-700 rounded-[4rem] flex flex-col items-center gap-5 font-black text-[11px] uppercase tracking-widest text-green-500 hover:bg-slate-700 transition-all shadow-2xl active:scale-95">
-                                            <Icons.Save size={40} /> Save Backup
-                                        </button>
-                                        <button onClick={() => { if(confirm("This will WIPE all data. Continue?")) { localStorage.clear(); window.location.reload(); }}} className="py-12 bg-red-950/10 border-2 border-red-900/30 rounded-[4rem] flex flex-col items-center gap-5 font-black text-[11px] uppercase tracking-widest text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-2xl active:scale-95">
-                                            <Icons.Save size={40} className="rotate-180" /> Hard Reset
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                        </div>
-                    </main>
+    <div class="sheet-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="name-box">
+                <div class="field">
+                    <label>Character Name</label>
+                    <input type="text" placeholder="[Enter Name Here]" value="">
                 </div>
-            );
-        }
+            </div>
+            <div class="meta-data">
+                <div class="field"><label>Class & Level</label><span>Fighter 1</span></div>
+                <div class="field"><label>Background</label><span>Farmer</span></div>
+                <div class="field"><label>Player Name</label><span>You</span></div>
+                <div class="field"><label>Species</label><span>Human</span></div>
+                <div class="field"><label>Alignment</label><span>Chaotic Good</span></div>
+                <div class="field"><label>XP</label><span>0</span></div>
+            </div>
+        </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+        <!-- Main Grid -->
+        <div class="main-grid">
+            
+            <!-- Left Column: Attributes & Skills -->
+            <div class="stats-column">
+                <h2>Ability Scores</h2>
+                <!-- STR -->
+                <div class="stat-box">
+                    <div class="stat-label">STR <div class="stat-score">17</div></div>
+                    <div class="stat-mod">+3</div>
+                    <div class="stat-save" style="font-size: 10px;">Save: <strong>+5</strong></div>
+                </div>
+                <!-- DEX -->
+                <div class="stat-box">
+                    <div class="stat-label">DEX <div class="stat-score">10</div></div>
+                    <div class="stat-mod">+0</div>
+                    <div class="stat-save" style="font-size: 10px;">Save: +0</div>
+                </div>
+                <!-- CON -->
+                <div class="stat-box">
+                    <div class="stat-label">CON <div class="stat-score">15</div></div>
+                    <div class="stat-mod">+2</div>
+                    <div class="stat-save" style="font-size: 10px;">Save: <strong>+4</strong></div>
+                </div>
+                <!-- INT -->
+                <div class="stat-box">
+                    <div class="stat-label">INT <div class="stat-score">8</div></div>
+                    <div class="stat-mod">-1</div>
+                    <div class="stat-save" style="font-size: 10px;">Save: -1</div>
+                </div>
+                <!-- WIS -->
+                <div class="stat-box">
+                    <div class="stat-label">WIS <div class="stat-score">10</div></div>
+                    <div class="stat-mod">+0</div>
+                    <div class="stat-save" style="font-size: 10px;">Save: +0</div>
+                </div>
+                <!-- CHA -->
+                <div class="stat-box">
+                    <div class="stat-label">CHA <div class="stat-score">14</div></div>
+                    <div class="stat-mod">+2</div>
+                    <div class="stat-save" style="font-size: 10px;">Save: +2</div>
+                </div>
+
+                <h2>Skills</h2>
+                <div class="skills-list">
+                    <div class="skill-row proficient"><span class="skill-mod">+5</span> <span>Athletics (STR)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+0</span> <span>Acrobatics (DEX)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+0</span> <span>Sleight of Hand (DEX)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+0</span> <span>Stealth (DEX) (Disadv)</span></div>
+                    <div class="skill-row"><span class="skill-mod">-1</span> <span>Arcana (INT)</span></div>
+                    <div class="skill-row"><span class="skill-mod">-1</span> <span>History (INT)</span></div>
+                    <div class="skill-row"><span class="skill-mod">-1</span> <span>Investigation (INT)</span></div>
+                    <div class="skill-row"><span class="skill-mod">-1</span> <span>Nature (INT)</span></div>
+                    <div class="skill-row"><span class="skill-mod">-1</span> <span>Religion (INT)</span></div>
+                    <div class="skill-row proficient"><span class="skill-mod">+2</span> <span>Animal Handling (WIS)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+0</span> <span>Insight (WIS)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+0</span> <span>Medicine (WIS)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+0</span> <span>Perception (WIS)</span></div>
+                    <div class="skill-row proficient"><span class="skill-mod">+2</span> <span>Survival (WIS)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+2</span> <span>Deception (CHA)</span></div>
+                    <div class="skill-row proficient"><span class="skill-mod">+4</span> <span>Intimidation (CHA)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+2</span> <span>Performance (CHA)</span></div>
+                    <div class="skill-row"><span class="skill-mod">+2</span> <span>Persuasion (CHA)</span></div>
+                </div>
+                
+                <div style="font-size: 11px; margin-top: 10px;">
+                    <strong>Passive Perception:</strong> 10
+                </div>
+            </div>
+
+            <!-- Center Column: Combat -->
+            <div class="combat-column">
+                <div class="combat-header">
+                    <div class="ac-box">
+                        <div class="val-label">Armor</div>
+                        <div class="val-large">17</div>
+                        <div class="val-label">Class</div>
+                    </div>
+                    <div class="init-box">
+                        <div class="val-label">Init</div>
+                        <div class="val-large">+0</div>
+                    </div>
+                    <div class="speed-box">
+                        <div class="val-label">Speed</div>
+                        <div class="val-large">30</div>
+                        <div class="val-label">Ft.</div>
+                    </div>
+                </div>
+
+                <div class="hp-box">
+                    <div class="val-label">Hit Points (Max 14)</div>
+                    <div class="val-large">14</div>
+                    <div class="val-label">Hit Dice: 1d10</div>
+                </div>
+
+                <div class="inspiration-box">
+                    <input type="checkbox" checked>
+                    <strong>Heroic Inspiration</strong>
+                    <span style="font-size: 10px;">(Reset on Long Rest)</span>
+                </div>
+
+                <div class="grapple-alert">
+                    GRAPPLE DC: 13
+                    <div style="font-size: 10px; font-weight: normal;">(8 + Str + Prof)</div>
+                </div>
+
+                <h2>Attacks & Weapons</h2>
+                <table class="attacks-table">
+                    <tr>
+                        <th>Name</th>
+                        <th>Atk</th>
+                        <th>Dmg/Type</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Iron Shovel</strong><br><em>(Battleaxe stats)</em></td>
+                        <td>+5</td>
+                        <td>1d8+3 Slash<br><em>(Topple)</em></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lead Pipe</strong><br><em>(Club stats)</em></td>
+                        <td>+5</td>
+                        <td>1d4+3 Bludg<br><em>(Slow)</em></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Unarmed</strong></td>
+                        <td>+5</td>
+                        <td>1+3 Bludg</td>
+                    </tr>
+                </table>
+
+                <h2>Tactics</h2>
+                <div style="font-size: 11px; font-style: italic;">
+                    <p><strong>The "Bounce":</strong> Use Shove (Prone) then Grapple. Target must beat <strong>DC 13</strong> to escape.</p>
+                    <p><strong>Tactical Mind:</strong> Failed a grapple check? Spend Second Wind to add <strong>1d10</strong> to the roll.</p>
+                    <p><strong>Weapon Mastery:</strong> Use Shovel to Topple (Con Save) or Timber to Push 10ft.</p>
+                </div>
+            </div>
+
+            <!-- Right Column: Features & Equipment -->
+            <div class="features-column">
+                <h2>Features & Traits</h2>
+                
+                <div class="feature-item">
+                    <span class="feature-name">Fighting Style: Defense</span>
+                    +1 bonus to AC while wearing armor.
+                </div>
+
+                <div class="feature-item">
+                    <span class="feature-name">Second Wind (2/Long Rest)</span>
+                    Bonus Action: Regain 1d10+1 HP. Or use for Tactical Mind.
+                </div>
+
+                <div class="feature-item">
+                    <span class="feature-name">Lucky (Human Feat)</span>
+                    2 Luck Points/Day. Advantage on d20 Test or Disadvantage on attack against you.
+                </div>
+
+                <div class="feature-item">
+                    <span class="feature-name">Tough (Farmer Feat)</span>
+                    +2 HP per level (included in max).
+                </div>
+
+                <div class="feature-item">
+                    <span class="feature-name">Tactical Mind</span>
+                    Add 1d10 to failed ability checks using Second Wind.
+                </div>
+
+                <h2>Equipment</h2>
+                <div class="equipment-list">
+                    <div class="item-row"><span>Chain Mail (Disadv Stealth)</span> <span>45 lb</span></div>
+                    <div class="item-row"><span>Heavy Iron Shovel</span> <span>6 lb</span></div>
+                    <div class="item-row"><span>Lead Pipe</span> <span>2 lb</span></div>
+                    <div class="item-row"><span>Carpenter's Tools</span> <span>6 lb</span></div>
+                    <div class="item-row"><span>Explorer's Pack</span> <span>50 lb</span></div>
+                    <hr>
+                    <div class="item-row"><strong>Currency:</strong> <span>57 GP</span></div>
+                    <div class="item-row"><strong>Load:</strong> <span>~109 / 255 lb</span></div>
+                </div>
+
+                <h2>Proficiencies</h2>
+                <div style="font-size: 11px;">
+                    <strong>Languages:</strong> Common, Gnomish, Giant.<br>
+                    <strong>Tools:</strong> Carpenter's Tools.<br>
+                    <strong>Armor:</strong> All Armor, Shields.<br>
+                    <strong>Weapons:</strong> Simple, Martial.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer Notes -->
+        <div style="border-top: 2px solid #333; padding-top: 10px; font-size: 12px;">
+            <strong>Backstory/Lore:</strong> A former farmer seeking "Integrity" and compensation from the Shiteizpants factory for a traumatic injury. Currently missing "Tavern Brawler" technique (learning at Level 4).
+        </div>
+    </div>
+
 </body>
 </html>
+
+
