@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcadia Nexus v11</title>
+    <title>Arcadia Nexus v11.1</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -106,7 +106,7 @@
             // STATE INITIALIZATION WITH SAFETY CHECK
             const [char, setChar] = useState(() => {
                 try {
-                    const s = localStorage.getItem('nexus_v11');
+                    const s = localStorage.getItem('nexus_v111');
                     return s ? JSON.parse(s) : defaultCharacter;
                 } catch (e) {
                     return defaultCharacter; // Fallback if data is corrupted
@@ -118,7 +118,7 @@
             const [isAiLoading, setIsAiLoading] = useState(false);
 
             useEffect(() => {
-                localStorage.setItem('nexus_v11', JSON.stringify(char));
+                localStorage.setItem('nexus_v111', JSON.stringify(char));
             }, [char]);
 
             const arb = useMemo(() => {
@@ -180,7 +180,7 @@
                     <div className="flex bg-slate-950 border-b border-slate-800 shrink-0 px-6 sm:px-12 justify-between items-center z-50">
                         <div className="flex items-center gap-2 py-5">
                             <Icons.Sword className="text-cyan-500" size={20} />
-                            <span className="font-black text-[11px] uppercase tracking-[0.3em] text-slate-500">Nexus v11</span>
+                            <span className="font-black text-[11px] uppercase tracking-[0.3em] text-slate-500">Nexus v11.1</span>
                         </div>
                         <nav className="flex gap-4 sm:gap-10 h-full">
                             {['combat', 'oracle', 'stats', 'system'].map(v => (
