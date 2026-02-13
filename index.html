@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arcadia Nexus v10</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        body { 
+            overscroll-behavior-y: none; 
+            background-color: #020617;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            color: #f1f5f9;
+        }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        
+        .main-container { width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
+        @media (min-width: 1024px) {
+            .main-container { display: grid; grid-template-columns: 420px 1fr; align-items: start; gap: 2rem; }
+        }
+
+        .tab-active { color: #22d3ee; border-bottom: 2px solid #22d3ee; }
+        @keyframes pulse-cyan { 0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px #22d3ee); } 50% { opacity: 0.4; } }
+        .sync-active { animation: pulse-cyan 1.5s infinite; }
+        
+        @keyframes aurora { 
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .ai-glow { 
+            background: linear-gradient(-45deg, #083344, #1e1b4b, #312e81, #164e63);
+            background-size: 400% 400%;
+            animation: aurora 15s ease infinite;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex justify-center items-center lg:p-6">
+    <div id="root" class="h-full w-full flex justify-center items-center max-w-[1440px]"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const modelName = "gemini-2.5-flash-preview-09-2025";
+
+        const callGemini = async (prompt, systemInstruction, key) => {
+            if (!key) return "Oracle Offline: Key Missing.";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || "The Oracle is silent.";
+            } catch (error) {
+                return "Connection to the Arcadia Mind lost.";
+            }
+        };
+
+        const LOGIC = {
+            getMod: (s) => Math.floor((s - 10) / 2),
+            getLevel: (xp) => {
+                const table = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+                for (let i = table.length - 1; i >= 0; i--) if (xp >= table[i]) return i + 1;
+                return 1;
+            },
+            getPB: (xp) => Math.ceil(LOGIC.getLevel(xp) / 4) + 1
+        };
+
+        const Icons = {
+            Sword: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M14.5 17.5 3 6 3 3 6 3 17.5 14.5m-4.5 4.5 6-6m-3 3 4 4"/></svg>,
+            Oracle: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.69 7.03"/><path d="M12 12l5.56 8.52"/><circle cx="12" cy="12" r="3"/></svg>,
+            Sparkle: (p) => <svg {...p} fill="currentColor" viewBox="0 0 24 24"><path d="M9 1l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6z"/></svg>,
+            Save: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/></svg>,
+            Shield: (p) => <svg {...p} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        };
+
+        const defaultCharacter = {
+            meta: { name: "Randy 'Brawler' Marsh", race: "Human", class: "Fighter", xp: 0 },
+            stats: { str: 17, dex: 10, con: 15, int: 8, wis: 10, cha: 14 },
+            status: { hp: 14, hpMax: 14, conditions: [] },
+            attacks: [{ id: 1, name: "Heavy Iron Shovel", dmg: "1d8", base: "str", props: ["Versatile", "Topple"] }],
+            inventory: { webhook: "", apiKey: "" }
+        };
+
+        function App() {
+            const [char, setChar] = useState(() => {
+                const s = localStorage.getItem('nexus_v10');
+                return s ? JSON.parse(s) : defaultCharacter;
+            });
+            const [view, setView] = useState('combat');
+            const [aiInput, setAiInput] = useState("");
+            const [aiResponse, setAiResponse] = useState("Greetings. I am the Oracle. Configure your API Key in System settings.");
+            const [isAiLoading, setIsAiLoading] = useState(false);
+
+            useEffect(() => {
+                localStorage.setItem('nexus_v10', JSON.stringify(char));
+            }, [char]);
+
+            const arb = useMemo(() => {
+                const lvl = LOGIC.getLevel(char.meta.xp);
+                const pb = LOGIC.getPB(char.meta.xp);
+                const mods = {}; Object.keys(char.stats).forEach(k => mods[k] = LOGIC.getMod(char.stats[k]));
+                return { lvl, pb, mods };
+            }, [char]);
+
+            const askOracle = async () => {
+                if (!aiInput.trim()) return;
+                setIsAiLoading(true);
+                const sysPrompt = `You are the Arcadia Oracle. Player: ${char.meta.name}, Level ${arb.lvl} ${char.meta.class}. HP: ${char.status.hp}/${char.status.hpMax}. Stats: STR ${char.stats.str}. Be brief, analytical, and remain in the Arcadia lore context.`;
+                const result = await callGemini(aiInput, sysPrompt, char.inventory.apiKey);
+                setAiResponse(result);
+                setAiInput("");
+                setIsAiLoading(false);
+            };
+
+            const updateHP = (val) => {
+                setChar(prev => ({
+                    ...prev,
+                    status: { ...prev.status, hp: Math.min(prev.status.hpMax, Math.max(0, prev.status.hp + val)) }
+                }));
+            };
+
+            return (
+                <div className="w-full h-full lg:h-[92vh] bg-slate-900 lg:rounded-[3rem] shadow-2xl border border-slate-800 flex flex-col overflow-hidden transition-all">
+                    
+                    {/* --- HEADER --- */}
+                    <div className="flex bg-slate-950 border-b border-slate-800 shrink-0 px-6 sm:px-12 justify-between items-center z-50">
+                        <div className="flex items-center gap-2 py-5">
+                            <Icons.Sword className="text-cyan-500" size={20} />
+                            <span className="font-black text-[11px] uppercase tracking-[0.3em] text-slate-500">Nexus v10</span>
+                        </div>
+                        <nav className="flex gap-4 sm:gap-10 h-full">
+                            {['combat', 'oracle', 'stats', 'system'].map(v => (
+                                <button key={v} onClick={() => setView(v)} className={`py-5 px-3 text-[10px] font-black uppercase tracking-widest transition-all ${view === v ? 'tab-active' : 'text-slate-600'}`}>{v}</button>
+                            ))}
+                        </nav>
+                        <Icons.Oracle size={20} className={isAiLoading ? 'animate-spin text-indigo-400' : 'text-slate-800'} />
+                    </div>
+
+                    <main className="flex-1 overflow-y-auto p-4 lg:p-14 scrollbar-hide">
+                        <div className="max-w-6xl mx-auto">
+                            
+                            {view === 'combat' && (
+                                <div className="main-container">
+                                    <div className="glass p-10 rounded-[2.5rem] border border-slate-800 shadow-xl">
+                                        <h1 className="text-4xl font-black text-white leading-none mb-1 tracking-tighter">{char.meta.name}</h1>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mb-10">Lvl {arb.lvl} • {char.meta.class}</p>
+                                        
+                                        <div className="flex justify-between items-center bg-slate-950/40 p-8 rounded-[2rem] border border-slate-800 mb-8">
+                                            <button onClick={() => updateHP(-1)} className="w-16 h-16 bg-slate-800 rounded-3xl border border-slate-700 text-red-500 font-black text-3xl">-</button>
+                                            <div className="text-center">
+                                                <span className="text-7xl font-black text-white">{char.status.hp}</span>
+                                                <p className="text-[10px] text-slate-600 font-black uppercase mt-2 tracking-widest">/ {char.status.hpMax} MAX</p>
+                                            </div>
+                                            <button onClick={() => updateHP(1)} className="w-16 h-16 bg-slate-800 rounded-3xl border border-slate-700 text-green-500 font-black text-3xl">+</button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {char.attacks.map(atk => (
+                                            <div key={atk.id} className="glass p-8 rounded-[2.5rem] border border-slate-800 flex justify-between items-center shadow-lg">
+                                                <div>
+                                                    <div className="text-2xl font-black text-white tracking-tight">{atk.name}</div>
+                                                    <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">{atk.props.join(' • ')}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-4xl font-black text-cyan-400 leading-none">+{arb.mods[atk.base] + arb.pb}</div>
+                                                    <div className="text-[9px] text-slate-600 font-black uppercase tracking-tighter mt-1 text-center">To Hit</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {view === 'oracle' && (
+                                <div className="max-w-4xl mx-auto space-y-8 animate-pop">
+                                    <div className="ai-glow p-1 rounded-[3.5rem] shadow-2xl">
+                                        <div className="bg-slate-950 rounded-[3.4rem] p-10 lg:p-14 min-h-[500px] flex flex-col justify-between">
+                                            <div className="prose prose-invert max-w-none">
+                                                <div className="flex items-center gap-4 mb-10">
+                                                    <Icons.Sparkle className="text-indigo-400 animate-pulse" size={28} />
+                                                    <span className="text-[11px] font-black uppercase tracking-[0.6em] text-indigo-500">Arcadia Mind Gateway</span>
+                                                </div>
+                                                <p className="text-slate-300 leading-relaxed font-medium italic text-xl">
+                                                    {isAiLoading ? "Processing query..." : aiResponse}
+                                                </p>
+                                            </div>
+                                            <div className="mt-14 flex gap-5">
+                                                <input 
+                                                    type="text" 
+                                                    value={aiInput}
+                                                    onChange={e => setAiInput(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && askOracle()}
+                                                    placeholder="Query the Oracle..."
+                                                    className="flex-1 bg-slate-900 border-2 border-slate-800 rounded-[2rem] px-8 py-6 text-indigo-100 focus:outline-none focus:border-indigo-600 transition-all font-medium shadow-inner"
+                                                />
+                                                <button onClick={askOracle} disabled={isAiLoading} className="bg-indigo-600 text-white px-12 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-indigo-500 transition-all disabled:opacity-50 shadow-xl active:scale-95">Query</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {!char.inventory.apiKey && <p className="text-center text-red-500 text-xs font-bold uppercase tracking-widest">Oracle Offline: Add API Key in System Tab</p>}
+                                </div>
+                            )}
+
+                            {view === 'stats' && (
+                                <div className="glass p-12 rounded-[3.5rem] border border-slate-800 grid grid-cols-2 md:grid-cols-3 gap-10 shadow-2xl">
+                                    {Object.entries(char.stats).map(([s, val]) => (
+                                        <div key={s} className="text-center group">
+                                            <span className="text-[12px] font-black text-slate-500 uppercase block mb-4 group-hover:text-amber-500 transition-colors">{s}</span>
+                                            <span className="text-6xl font-black text-white leading-none tracking-tighter">{arb.mods[s]>=0?'+':''}{arb.mods[s]}</span>
+                                            <input type="number" value={char.stats[s]} onChange={e => setChar({...char, stats: {...char.stats, [s]: parseInt(e.target.value)||0}})} className="w-full bg-transparent text-[13px] text-slate-600 text-center font-black mt-4 outline-none focus:text-amber-400" />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {view === 'system' && (
+                                <div className="max-w-3xl mx-auto space-y-12 animate-pop">
+                                    <section className="glass p-12 rounded-[3.5rem] border border-slate-800 space-y-8 shadow-2xl">
+                                        <h3 className="text-[12px] font-black text-indigo-400 uppercase tracking-[0.5em] mb-4">Core Settings</h3>
+                                        
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-slate-600 uppercase ml-6 tracking-widest">Gemini API Key (Oracle)</label>
+                                            <input type="password" placeholder="Paste Google AI Key Here..." value={char.inventory.apiKey || ""} onChange={e => setChar({...char, inventory: {...char.inventory, apiKey: e.target.value}})} className="w-full bg-slate-950 border-2 border-slate-800 p-6 rounded-[2.5rem] text-sm text-indigo-300 focus:border-indigo-600 transition-all font-mono shadow-inner" />
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-slate-600 uppercase ml-6 tracking-widest">Discord Webhook</label>
+                                            <input type="text" placeholder="https://discord.com/api/webhooks..." value={char.inventory.webhook} onChange={e => setChar({...char, inventory: {...char.inventory, webhook: e.target.value}})} className="w-full bg-slate-950 border-2 border-slate-800 p-6 rounded-[2.5rem] text-sm text-indigo-300 focus:border-indigo-600 transition-all font-mono shadow-inner" />
+                                        </div>
+                                    </section>
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+                                        <button onClick={() => {
+                                            const blob = new Blob([JSON.stringify(char, null, 2)], { type: "application/json" });
+                                            const url = URL.createObjectURL(blob);
+                                            const a = document.createElement('a'); a.href = url; a.download = `${char.meta.name}_Archive.json`; a.click();
+                                        }} className="py-12 bg-slate-800 border-2 border-slate-700 rounded-[4rem] flex flex-col items-center gap-5 font-black text-[11px] uppercase tracking-widest text-green-500 hover:bg-slate-700 transition-all shadow-2xl active:scale-95">
+                                            <Icons.Save size={40} /> Save Backup
+                                        </button>
+                                        <button onClick={() => { if(confirm("Initiate Wipe?")) { localStorage.clear(); window.location.reload(); }}} className="py-12 bg-red-950/10 border-2 border-red-900/30 rounded-[4rem] flex flex-col items-center gap-5 font-black text-[11px] uppercase tracking-widest text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-2xl active:scale-95">
+                                            <Icons.Save size={40} className="rotate-180" /> Hard Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
