@@ -3,195 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SFS v3.0: Social Turn Engine</title>
-    
-    <!-- React & Tailwind CDNs -->
+    <title>SFS v3.0: Isometric Social Engine</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-        body {
-            background-color: #000;
-            color: #e5e5e5;
-            font-family: 'VT323', monospace;
-            overflow: hidden; /* Prevent scroll on splash */
-        }
-        
+        body { background-color: #000; color: #e5e5e5; font-family: 'VT323', monospace; overflow: hidden; }
         .pixel-font { font-family: 'Press Start 2P', cursive; }
         .scroll-hide::-webkit-scrollbar { display: none; }
-        
-        /* Animation Utilities */
         .fade-in { animation: fadeIn 0.5s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Isometric Projection */
+        .iso-grid {
+            display: grid;
+            gap: 2px;
+            transform: scale(1.5) perspective(600px) rotateX(20deg);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
-
 <div id="root"></div>
 
 <script type="text/babel">
     const { useState, useEffect, useRef } = React;
+    const API_KEY = ""; // Environment will inject key here
 
-    // ==========================================
-    // PART 0: ASSET MOCKS (Fixes Import Crash)
-    // ==========================================
-    
-    // Replacing Lucide imports with system-safe components
-    const Battery = () => <span className="text-lg">🔋</span>;
-    const Activity = () => <span className="text-lg">📈</span>;
-    const Zap = () => <span className="text-lg">⚡</span>;
-    const Target = () => <span className="text-lg">🎯</span>;
-    const Flag = () => <span className="text-lg">🏁</span>;
-    const Search = () => <span className="text-lg">🔍</span>;
-    const X = () => <span className="text-lg">❌</span>;
-    const Info = () => <span className="text-lg">ℹ️</span>;
-    const Terminal = () => <span className="text-lg">💻</span>;
-    const Cpu = () => <span className="text-lg">💾</span>;
-    const User = () => <span className="text-lg">👤</span>;
-    const Radio = () => <span className="text-lg">📻</span>;
-    const Shield = () => <span className="text-lg">🛡️</span>;
-    const Crown = () => <span className="text-lg">👑</span>;
-    const Wind = () => <span className="text-lg">💨</span>;
-    const Layers = () => <span className="text-lg">📚</span>;
-    const Waves = () => <span className="text-lg">🌊</span>;
-    const Volume2 = () => <span className="text-lg">🔊</span>;
-    const VolumeX = () => <span className="text-lg">🔇</span>;
-    const Bug = () => <span className="text-lg">🐛</span>;
-    const FastForward = () => <span className="text-lg">⏩</span>;
-    const Heart = () => <span className="text-lg">❤️</span>;
-    const ChevronRight = () => <span className="text-lg">▶</span>;
-    const Calculator = () => <span className="text-lg">🧮</span>;
-    const Ghost = () => <span className="text-lg">👻</span>;
-
-    // ==========================================
-    // PART 1: CORE PHYSICS (INLINED)
-    // ==========================================
-
-    const TONE_COSTS = {
-        NEUTRAL: 5, REASSURING: 12, APOLOGETIC: 18, 
-        VULNERABLE: 28, DIRECT: 8, FIRM: 22, URGENT: 15
-    };
-
-    const DEFAULT_USER_HARDWARE = { gating: 50, context_pref: 15, rsd_sensitivity: 50 };
-
-    const calculateTurnDrain = (params) => {
-        const { user_hardware = DEFAULT_USER_HARDWARE, npc_dials, tone, env_static = 0, current_reserve = 100 } = params;
-        
-        // 1. Context Tax
-        const contextDelta = Math.abs(user_hardware.context_pref - npc_dials.ctx) * 0.4;
-        
-        // 2. Sensory Load
-        const gatingFriction = (100 - user_hardware.gating) * 0.2;
-        const intensityLoad = (npc_dials.int * 0.15) + gatingFriction;
-        
-        // 3. Formality Tax
-        const formalityTax = npc_dials.form * 0.1;
-
-        // 4. Fatigue Multiplier
-        const fatigueMultiplier = 1 + (100 - current_reserve) / 100;
-        
-        const baseTotal = TONE_COSTS[tone] + contextDelta + intensityLoad + formalityTax + (env_static / 4);
-        const total = Math.round(baseTotal * fatigueMultiplier);
-
-        return { 
-            total, 
-            breakdown: { 
-                tone: TONE_COSTS[tone], 
-                context: contextDelta, 
-                intensity: intensityLoad, 
-                static: (env_static/4), 
-                fatigue: fatigueMultiplier 
-            } 
-        };
-    };
-
-    // ==========================================
-    // PART 2: MANIFESTS
-    // ==========================================
-
-    const ARCHETYPES = {
-        "SIGNAL_LOSS": { 
-            "id": "SIGNAL_LOSS",
-            "ctx": 10, "form": 5, "int": 95, "rsd": 30, 
-            "voice": "Puck", "color": "text-yellow-400", "border": "border-yellow-500",
-            "icon": <Radio/>, "desc": "MAX_AROUSAL | SENSORY_LEAK", 
-            "hook": "OXY-LOW. WHY-STILL-LINKED? TETHER-STABLE. DO-NOT-DISCONNECT!" 
-        },
-        "ARCHIVE_V0": { 
-            "id": "ARCHIVE_V0",
-            "ctx": 95, "form": 95, "int": 20, "rsd": 80, 
-            "voice": "Kore", "color": "text-purple-400", "border": "border-purple-500",
-            "icon": <Crown/>, "desc": "MAX_FORMALITY | HIGH_CONTEXT", 
-            "hook": "You approach the archive as if your presence is requested. Why do you disturb this equilibrium?" 
-        },
-        "STASIS_POINT": { 
-            "id": "STASIS_POINT",
-            "ctx": 90, "form": 80, "int": 15, "rsd": 95, 
-            "voice": "Aoede", "color": "text-red-500", "border": "border-red-500",
-            "icon": <Shield/>, "desc": "MAX_RSD | SUBTEXT_VIGILANCE", 
-            "hook": "The current vector is sufficient. A change would be... disruptive." 
-        },
-        "WASTE_RECOIL": { 
-            "id": "WASTE_RECOIL",
-            "ctx": 0, "form": 0, "int": 60, "rsd": 20, 
-            "voice": "Fenrir", "color": "text-orange-400", "border": "border-orange-500",
-            "icon": <Wind/>, "desc": "ZERO_FILTER | BRUTAL_LITERAL", 
-            "hook": "You use too many words for someone with failing life support. Cut the line or drift." 
-        }
-    };
-
+    // --- LOGIC BIBLE: SCENARIOS ---
     const SCENARIOS = {
-        "zero_g_heist": { 
-            "id": "zero_g_heist", "title": "ZERO-G HEIST", 
-            "context": "Oxygen at 4%. High-frequency alarms screaming.", 
-            "static_load": 95, "map_color": "bg-slate-900" 
-        },
-        "neon_extraction": { 
-            "id": "neon_extraction", "title": "NEON EXTRACTION", 
-            "context": "Deafening club bass. Visual strobe interference.", 
-            "static_load": 85, "map_color": "bg-fuchsia-950" 
-        },
-        "void_council": { 
-            "id": "void_council", "title": "VOID COUNCIL", 
-            "context": "Infinite white space. Silence.", 
-            "static_load": 5, "map_color": "bg-zinc-950" 
-        }
+      zero_g_heist: {
+        id: "zero_g_heist",
+        title: "ZERO-G HEIST",
+        context: "Oxygen at 4%. High-frequency alarms screaming. Station integrity compromised.",
+        user_goal: "Convince the target to cut the tether so you can reach the override valve.",
+        npc_goal: "Maintain physical lock to avoid void-drift.",
+        environmental_static: 95,
+        map_color: "bg-slate-900",
+        wall_color: "bg-slate-700"
+      },
+      neon_extraction: {
+        id: "neon_extraction",
+        title: "NEON EXTRACTION",
+        context: "Deafening club bass. Visual strobe interference. Target is in a neural-sync.",
+        user_goal: "Initiate extraction sequence immediately.",
+        npc_goal: "Preserve the neural link until the data packet is 100% verified.",
+        environmental_static: 85,
+        map_color: "bg-fuchsia-950",
+        wall_color: "bg-fuchsia-900"
+      },
+      void_council: {
+        id: "void_council",
+        title: "VOID COUNCIL",
+        context: "Infinite white space. Silence that generates internal tinnitus.",
+        user_goal: "Extract coordinate data for the next jump.",
+        npc_goal: "Measure your processing speed and emotional stability via cryptic stalling.",
+        environmental_static: 5,
+        map_color: "bg-zinc-900",
+        wall_color: "bg-zinc-800"
+      }
     };
 
-    // ==========================================
-    // PART 3: THE APP
-    // ==========================================
+    // --- LOGIC BIBLE: ARCHETYPES ---
+    const ARCHETYPES = {
+      glitch: {
+        id: "glitch", name: "GLITCH_CORE",
+        desc: "MAX_AROUSAL | SENSORY_LEAK",
+        color: "text-yellow-400", border: "border-yellow-500", icon: "📻",
+        dials: { high_context: 10, formality: 5, intensity: 95, rsd: 30 },
+        hook: "OXY-LOW. WHY-STILL-LINKED? TETHER-STABLE. VALVE-DISTANT. DO-NOT-DISCONNECT!"
+      },
+      sovereign: {
+        id: "sovereign", name: "SOVEREIGN_LOGIC",
+        desc: "MAX_FORMALITY | HIGH_CONTEXT",
+        color: "text-purple-400", border: "border-purple-500", icon: "👑",
+        dials: { high_context: 95, formality: 95, intensity: 20, rsd: 80 },
+        hook: "You approach the archive as if your presence is requested. Why do you disturb this equilibrium?"
+      },
+      fortress: {
+        id: "fortress", name: "FORTRESS_VALVE",
+        desc: "MAX_RSD | SUBTEXT_VIGILANCE",
+        color: "text-red-500", border: "border-red-500", icon: "🛡️",
+        dials: { high_context: 90, formality: 80, intensity: 15, rsd: 95 },
+        hook: "The current vector is sufficient. A change would be... disruptive. Why do you want to alter it?"
+      }
+    };
 
+    const TONE_COSTS = { NEUTRAL: 5, REASSURING: 12, APOLOGETIC: 18, VULNERABLE: 28, DIRECT: 8, FIRM: 22, URGENT: 15 };
+    const TILE_SIZE = 48;
+    const GRID_W = 11;
+    const GRID_H = 9;
+
+    // Map: 1=Wall, 0=Floor, 2=NPC, 3=Player
+    const BASE_MAP = [
+      [1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,1,1,0,0,0,0,1],
+      [1,0,0,0,1,1,0,0,0,0,1],
+      [1,0,0,0,0,0,0,1,0,0,1],
+      [1,0,0,0,0,0,2,1,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    // --- AI BRIDGE ---
+    const callGemini = async (prompt, sys) => {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        try {
+            const res = await fetch(url, { method: 'POST', body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: sys }] }
+            })});
+            const data = await res.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text;
+        } catch (e) { return "ERROR: Connection severed."; }
+    };
+
+    // --- APP COMPONENT ---
     function App() {
         const [phase, setPhase] = useState('SPLASH'); 
         const [activeScenario, setActiveScenario] = useState(null);
         const [activeNpc, setActiveNpc] = useState(null);
+        const [chat, setChat] = useState([]);
         const [reserve, setReserve] = useState(100);
         const [resolution, setResolution] = useState(0); 
-        const [chat, setChat] = useState([]);
-        const [mathLog, setMathLog] = useState(null);
         const [isProcessing, setIsProcessing] = useState(false);
+        const [debugMode, setDebugMode] = useState(false);
+        const [playerPos, setPlayerPos] = useState({x: 1, y: 1});
+        const [npcPos, setNpcPos] = useState({x: 6, y: 5});
         const chatEndRef = useRef(null);
 
+        // Movement Logic
         useEffect(() => {
-            if (chatEndRef.current) {
-                chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-            }
+            const handleKeyDown = (e) => {
+                if (e.key === '`') setDebugMode(prev => !prev);
+                if (phase === 'ROAM') {
+                    let dx = 0, dy = 0;
+                    if (e.key === 'ArrowUp' || e.key === 'w') dy = -1;
+                    if (e.key === 'ArrowDown' || e.key === 's') dy = 1;
+                    if (e.key === 'ArrowLeft' || e.key === 'a') dx = -1;
+                    if (e.key === 'ArrowRight' || e.key === 'd') dx = 1;
+                    
+                    if (e.key === ' ' || e.key === 'Enter') { checkInteraction(); return; }
+                    
+                    if (dx !== 0 || dy !== 0) {
+                        const nx = playerPos.x + dx;
+                        const ny = playerPos.y + dy;
+                        if (BASE_MAP[ny] && BASE_MAP[ny][nx] !== 1 && !(nx === npcPos.x && ny === npcPos.y)) {
+                            setPlayerPos({ x: nx, y: ny });
+                        }
+                    }
+                }
+            };
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+        }, [phase, playerPos, npcPos]);
+
+        useEffect(() => {
+            if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }, [chat]);
 
-        const startSim = (npcKey, scenarioKey) => {
-            setActiveNpc({...ARCHETYPES[npcKey], id: npcKey});
-            setActiveScenario(SCENARIOS[scenarioKey]);
-            setChat([{ role: 'npc', text: ARCHETYPES[npcKey].hook }]);
-            setPhase('SIM');
-            setReserve(100);
-            setResolution(0);
-            setMathLog(null);
+        const checkInteraction = () => {
+            const dist = Math.abs(playerPos.x - npcPos.x) + Math.abs(playerPos.y - npcPos.y);
+            if (dist === 1) {
+                setPhase('SIM');
+                if (chat.length === 0) setChat([{ role: 'npc', text: activeNpc.hook }]);
+            }
         };
 
         const submitTurn = async (e) => {
@@ -202,103 +183,134 @@
             setIsProcessing(true);
             e.target.userInput.value = "";
 
-            // RUN THE PHYSICS ENGINE
-            const result = calculateTurnDrain({
-                npc_dials: activeNpc,
-                tone: tone,
-                env_static: activeScenario.static_load,
-                current_reserve: reserve
-            });
+            // 1. Math (Drain)
+            const contextDelta = Math.abs(15 - activeNpc.dials.high_context);
+            const drain = Math.round((TONE_COSTS[tone] + (contextDelta * 0.4) + (activeScenario.environmental_static / 4)));
+            setReserve(prev => Math.max(0, prev - drain));
+            setChat(prev => [...prev, { role: 'user', text, tone, drain }]);
+
+            // 2. AI (Response)
+            const sys = `
+                SCENARIO: ${activeScenario.context}
+                USER_GOAL: ${activeScenario.user_goal}
+                NPC: ${activeNpc.name}. ${activeNpc.desc}.
+                NPC_DIALS: RSD=${activeNpc.dials.rsd}, Context=${activeNpc.dials.high_context}.
+                User said: "${text}" (Tone: ${tone}).
+                Respond in character. If Context Dial > 80, be vague.
+                Return JSON: {"reply": "...", "progress": number(0-25)}
+            `;
             
-            setReserve(prev => Math.max(0, prev - result.total));
-            setMathLog(result); 
-            setChat(prev => [...prev, { role: 'user', text, tone, drain: result.total }]);
-
-            // Simulated NPC Response
-            setTimeout(() => {
-                const responses = [
-                    "Signal received. Processing impedance...",
-                    "Your modulation is noted. Adjustment required.",
-                    "Why did you phrase it like that?",
-                    "Data accepted. Proceeding.",
-                    "Wait. Repeat the vector."
-                ];
-                const reply = responses[Math.floor(Math.random() * responses.length)];
-
-                setChat(prev => [...prev, { role: 'npc', text: reply }]);
-                setResolution(prev => Math.min(100, prev + 20));
-                setIsProcessing(false);
-            }, 800);
+            const rawResult = await callGemini(text, sys);
+            try {
+                const data = JSON.parse(rawResult.match(/\{.*\}/s)[0]);
+                setChat(prev => [...prev, { role: 'npc', text: data.reply }]);
+                setResolution(prev => Math.min(100, prev + data.progress));
+            } catch (e) {
+                setChat(prev => [...prev, { role: 'npc', text: "[ERROR]: Signal corruption. Repeat." }]);
+            }
+            setIsProcessing(false);
+            if (resolution >= 100 || reserve <= 0) setPhase('SUMMARY');
         };
 
+        // --- RENDERERS ---
         if (phase === 'SPLASH') return (
-            <div className="min-h-screen bg-black text-white font-mono uppercase flex flex-col items-center justify-center p-4">
-                <h1 className="text-6xl md:text-8xl font-black italic text-blue-600 mb-8 tracking-tighter text-center">SFS_v3.0</h1>
-                <p className="text-zinc-500 mb-12 text-xs md:text-sm tracking-widest">Consolidated Logic Preview</p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
-                    <button onClick={() => startSim("SIGNAL_LOSS", "zero_g_heist")} className="p-8 border-2 border-green-500 bg-zinc-950 hover:bg-green-900/20 text-left transition-all group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-30 text-4xl"><Radio /></div>
-                        <h3 className="text-2xl font-black text-green-400 mb-2 italic">THE GLITCH</h3>
-                        <p className="text-xs text-zinc-400 mb-4">Scenario: Zero-G Heist (95% Static)</p>
-                        <div className="text-[0.6rem] bg-green-900/40 p-2 text-green-300 inline-block font-bold">TEST: SENSORY OVERLOAD</div>
-                    </button>
-                    
-                    <button onClick={() => startSim("STASIS_POINT", "void_council")} className="p-8 border-2 border-red-500 bg-zinc-950 hover:bg-red-900/20 text-left transition-all group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-30 text-4xl"><Shield /></div>
-                        <h3 className="text-2xl font-black text-red-400 mb-2 italic">THE FORTRESS</h3>
-                        <p className="text-xs text-zinc-400 mb-4">Scenario: Void Council (5% Static)</p>
-                        <div className="text-[0.6rem] bg-red-900/40 p-2 text-red-300 inline-block font-bold">TEST: SUBTEXT DECODING</div>
-                    </button>
+            <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-black text-white">
+                <h1 className="text-8xl font-black italic text-blue-600 mb-8 tracking-tighter">SFS_v3.0</h1>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+                    {Object.values(SCENARIOS).map(s => (
+                        <button key={s.id} onClick={() => { setActiveScenario(s); setPhase('SETUP'); }} className="p-8 border-2 border-zinc-800 bg-zinc-950 hover:border-blue-500 text-left transition-all">
+                            <h3 className="text-2xl font-bold mb-2 uppercase">{s.title}</h3>
+                            <p className="text-xs text-zinc-500">{s.context}</p>
+                        </button>
+                    ))}
                 </div>
             </div>
         );
 
-        return (
-            <div className="min-h-screen bg-black text-white font-mono uppercase flex flex-col md:flex-row">
+        if (phase === 'SETUP') return (
+            <div className="max-w-6xl mx-auto py-24 px-8 min-h-screen text-white bg-black uppercase">
+                <header className="border-b-2 border-zinc-900 pb-12 mb-12">
+                    <h1 className="text-6xl font-black italic text-blue-600">Select_Target</h1>
+                </header>
+                <div className="grid grid-cols-3 gap-8">
+                    {Object.values(ARCHETYPES).map(npc => (
+                        <button key={npc.id} onClick={() => { setActiveNpc(npc); setPhase('ROAM'); }} className={`p-8 border-2 ${npc.border} bg-zinc-950 hover:bg-black transition-all text-left`}>
+                            <div className="text-4xl mb-4">{npc.icon}</div>
+                            <h3 className={`text-xl font-bold ${npc.color} mb-2`}>{npc.name}</h3>
+                            <p className="text-[0.6rem] text-zinc-500 font-bold">{npc.desc}</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+
+        if (phase === 'ROAM') return (
+            <div className={`h-screen ${activeScenario.map_color} flex items-center justify-center relative overflow-hidden text-white`}>
                 {/* HUD */}
-                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-zinc-800 p-6 flex flex-col bg-zinc-950/50">
-                    <div className="mb-8">
-                        <button onClick={() => setPhase('SPLASH')} className="text-xs text-zinc-600 underline mb-8 hover:text-white">EXIT_SIMULATION</button>
-                        <p className="text-[0.6rem] text-zinc-500 tracking-widest mb-2 font-bold">REGULATION_RESERVE</p>
+                <div className="absolute top-8 left-8 bg-black/90 p-6 border-2 border-zinc-800 z-50">
+                    <div className="text-blue-500 font-bold tracking-widest text-xs mb-2">{activeScenario.title}</div>
+                    <div className="text-[0.6rem] text-zinc-600">
+                        <p>TARGET: {activeNpc.name}</p>
+                        <p>STATIC: {activeScenario.environmental_static}%</p>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-zinc-800 text-[0.5rem] text-zinc-500">
+                        WASD to Move | SPACE to Interact
+                    </div>
+                </div>
+
+                {/* GRID */}
+                <div className="iso-grid" style={{ gridTemplateColumns: `repeat(${GRID_W}, ${TILE_SIZE}px)` }}>
+                    {BASE_MAP.map((row, y) => row.map((cell, x) => {
+                        let cellClass = `w-[${TILE_SIZE}px] h-[${TILE_SIZE}px] flex items-center justify-center transition-all duration-200 `;
+                        
+                        if (cell === 1) cellClass += activeScenario.wall_color + " shadow-xl border-t border-white/10";
+                        else cellClass += "bg-black/40 border border-white/5";
+
+                        let content = null;
+                        if (x === playerPos.x && y === playerPos.y) {
+                            content = <div className="text-2xl animate-pulse">👤</div>; // Player
+                            cellClass += " bg-blue-900/40 border-blue-500/50";
+                        } else if (x === npcPos.x && y === npcPos.y) {
+                            content = <div className="text-2xl">{activeNpc.icon}</div>; // NPC
+                        }
+
+                        return <div key={`${x}-${y}`} className={cellClass}>{content}</div>;
+                    }))}
+                </div>
+            </div>
+        );
+
+        if (phase === 'SIM') return (
+            <div className="flex h-screen bg-black text-white font-mono uppercase">
+                {/* HUD Sidebar */}
+                <div className="w-80 border-r border-zinc-900 p-8 flex flex-col justify-between bg-zinc-950/20">
+                    <div>
+                        <div className="mb-8 border-b border-zinc-900 pb-8">
+                            <p className="text-[0.6rem] text-zinc-500 font-bold tracking-widest mb-2">TARGET_GOAL</p>
+                            <p className="text-xs italic text-zinc-400 leading-relaxed lowercase">"{activeScenario.user_goal}"</p>
+                        </div>
+                        <p className="text-[0.6rem] text-zinc-500 tracking-widest mb-2 font-bold">RESERVE</p>
                         <div className="text-6xl font-black mb-2 tracking-tighter">{reserve}%</div>
                         <div className="h-2 bg-zinc-900 overflow-hidden border border-zinc-700">
                             <div className={`h-full transition-all duration-500 ${reserve < 20 ? 'bg-red-600' : 'bg-green-500'}`} style={{width: `${reserve}%`}}></div>
                         </div>
                     </div>
-                    
-                    {/* MATH LOG */}
-                    <div className="flex-1 border-t-2 border-zinc-800 pt-8">
-                        <p className="text-[0.7rem] text-blue-500 tracking-widest mb-4 flex items-center gap-2 font-bold"><Calculator className="w-4 h-4"/> DRAIN_CALCULATOR</p>
-                        {mathLog ? (
-                            <div className="space-y-3 text-[0.65rem] text-zinc-400 font-mono bg-black p-4 border border-zinc-800">
-                                <div className="flex justify-between"><span>BASE_TONE_COST:</span><span className="text-white">{mathLog.breakdown.tone}</span></div>
-                                <div className="flex justify-between"><span>CONTEXT_TAX:</span><span className="text-white">+{Math.round(mathLog.breakdown.context)}</span></div>
-                                <div className="flex justify-between"><span>INTENSITY_LOAD:</span><span className="text-white">+{Math.round(mathLog.breakdown.intensity)}</span></div>
-                                <div className="flex justify-between"><span>ENV_STATIC:</span><span className="text-white">+{Math.round(mathLog.breakdown.static)}</span></div>
-                                <div className="border-t border-zinc-800 my-2"></div>
-                                <div className="flex justify-between text-blue-400 font-bold"><span>FATIGUE_MULT:</span><span>x{mathLog.breakdown.fatigue.toFixed(2)}</span></div>
-                                <div className="flex justify-between text-red-500 text-xl font-black mt-2"><span>TOTAL_DRAIN:</span><span>-{mathLog.total}</span></div>
-                            </div>
-                        ) : <p className="text-[0.6rem] text-zinc-700 italic">WAITING_FOR_INPUT...</p>}
-                    </div>
+                    <button onClick={() => setPhase('ROAM')} className="text-xs text-zinc-600 underline hover:text-white">BREAK_LINK</button>
                 </div>
 
-                {/* CHAT */}
-                <main className="flex-1 flex flex-col relative h-[calc(100vh-320px)] md:h-screen">
-                    <div className="absolute inset-0 pointer-events-none opacity-5 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-                    
-                    <header className="p-6 border-b border-zinc-800 flex justify-between items-center z-10 bg-black/80 backdrop-blur">
+                {/* Chat Interface */}
+                <main className="flex-1 flex flex-col relative">
+                    <header className="p-8 border-b border-zinc-900 flex justify-between items-center z-10 bg-black/90 backdrop-blur">
                         <div className="flex items-center gap-4">
-                            <div className={`p-2 border-2 ${activeNpc.color.replace('text-', 'border-')} rounded-full bg-black shadow-lg`}>{activeNpc.icon}</div>
+                            <div className={`text-4xl`}>{activeNpc.icon}</div>
                             <div>
-                                <h2 className={`text-2xl font-black ${activeNpc.color} italic tracking-tighter`}>{activeNpc.id}</h2>
+                                <h2 className={`text-2xl font-black ${activeNpc.color} italic tracking-tighter`}>{activeNpc.name}</h2>
                                 <p className="text-[0.5rem] text-zinc-600 font-bold tracking-widest">{activeNpc.desc}</p>
                             </div>
                         </div>
-                        <div className="text-right hidden md:block">
-                            <p className="text-[0.6rem] text-zinc-500 font-bold tracking-widest">ENV_STATIC_LOAD</p>
-                            <p className="text-xl font-bold text-white">{activeScenario.static_load}%</p>
+                        <div className="text-right">
+                             <p className="text-[0.6rem] text-zinc-500 font-bold tracking-widest">RESOLUTION</p>
+                             <p className="text-2xl font-black text-blue-500">{resolution}%</p>
                         </div>
                     </header>
 
@@ -312,23 +324,31 @@
                             </div>
                         ))}
                         <div ref={chatEndRef}></div>
+                        {isProcessing && <div className="text-zinc-700 text-[0.6rem] animate-pulse px-4 tracking-widest text-center">NEURAL_PROCESSING...</div>}
                     </div>
 
-                    <form onSubmit={submitTurn} className="p-6 bg-zinc-950 border-t border-zinc-800 z-10">
+                    <form onSubmit={submitTurn} className="p-6 bg-zinc-950 border-t border-zinc-900 z-10">
                         <div className="flex gap-4">
-                            <select name="tone" className="bg-black border border-zinc-800 text-xs text-white p-4 w-32 md:w-40 focus:border-blue-500 outline-none font-bold">
+                            <select name="tone" className="bg-black border border-zinc-800 text-xs text-white p-4 w-40 focus:border-blue-500 outline-none font-bold cursor-pointer">
                                 {Object.keys(TONE_COSTS).map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                             <input name="userInput" autoComplete="off" className="flex-1 bg-black border border-zinc-800 text-white p-4 focus:border-blue-500 outline-none font-serif text-lg pl-6" placeholder="Transmit signal..." />
-                            <button type="submit" disabled={isProcessing} className="bg-blue-600 text-white px-6 md:px-8 font-bold text-xs hover:bg-blue-500 transition-all disabled:opacity-50">SEND</button>
+                            <button type="submit" disabled={isProcessing} className="bg-blue-600 text-white px-8 font-bold text-xs hover:bg-blue-500 transition-all disabled:opacity-50">SEND</button>
                         </div>
                     </form>
                 </main>
             </div>
         );
+        
+        if (phase === 'SUMMARY') return (
+            <div className="min-h-screen bg-black text-white font-mono uppercase flex flex-col items-center justify-center p-8 text-center">
+                <h1 className="text-8xl font-black italic tracking-tighter mb-8">{resolution >= 100 ? "SUCCESS" : "CRASH"}</h1>
+                <p className="text-zinc-500 tracking-widest mb-12">RESERVE: {reserve}% | RESOLUTION: {resolution}%</p>
+                <button onClick={() => window.location.reload()} className="bg-white text-black px-12 py-4 font-bold text-xl hover:bg-zinc-300">RESET</button>
+            </div>
+        );
     }
-    
-    // MOUNT THE APP
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 </script>
