@@ -38,6 +38,37 @@
     const { useState, useEffect, useRef } = React;
 
     // ==========================================
+    // PART 0: ASSET MOCKS (Fixes Import Crash)
+    // ==========================================
+    
+    // Replacing Lucide imports with system-safe components
+    const Battery = () => <span className="text-lg">🔋</span>;
+    const Activity = () => <span className="text-lg">📈</span>;
+    const Zap = () => <span className="text-lg">⚡</span>;
+    const Target = () => <span className="text-lg">🎯</span>;
+    const Flag = () => <span className="text-lg">🏁</span>;
+    const Search = () => <span className="text-lg">🔍</span>;
+    const X = () => <span className="text-lg">❌</span>;
+    const Info = () => <span className="text-lg">ℹ️</span>;
+    const Terminal = () => <span className="text-lg">💻</span>;
+    const Cpu = () => <span className="text-lg">💾</span>;
+    const User = () => <span className="text-lg">👤</span>;
+    const Radio = () => <span className="text-lg">📻</span>;
+    const Shield = () => <span className="text-lg">🛡️</span>;
+    const Crown = () => <span className="text-lg">👑</span>;
+    const Wind = () => <span className="text-lg">💨</span>;
+    const Layers = () => <span className="text-lg">📚</span>;
+    const Waves = () => <span className="text-lg">🌊</span>;
+    const Volume2 = () => <span className="text-lg">🔊</span>;
+    const VolumeX = () => <span className="text-lg">🔇</span>;
+    const Bug = () => <span className="text-lg">🐛</span>;
+    const FastForward = () => <span className="text-lg">⏩</span>;
+    const Heart = () => <span className="text-lg">❤️</span>;
+    const ChevronRight = () => <span className="text-lg">▶</span>;
+    const Calculator = () => <span className="text-lg">🧮</span>;
+    const Ghost = () => <span className="text-lg">👻</span>;
+
+    // ==========================================
     // PART 1: CORE PHYSICS (INLINED)
     // ==========================================
 
@@ -88,28 +119,28 @@
             "id": "SIGNAL_LOSS",
             "ctx": 10, "form": 5, "int": 95, "rsd": 30, 
             "voice": "Puck", "color": "text-yellow-400", "border": "border-yellow-500",
-            "icon": "📻", "desc": "MAX_AROUSAL | SENSORY_LEAK", 
+            "icon": <Radio/>, "desc": "MAX_AROUSAL | SENSORY_LEAK", 
             "hook": "OXY-LOW. WHY-STILL-LINKED? TETHER-STABLE. DO-NOT-DISCONNECT!" 
         },
         "ARCHIVE_V0": { 
             "id": "ARCHIVE_V0",
             "ctx": 95, "form": 95, "int": 20, "rsd": 80, 
             "voice": "Kore", "color": "text-purple-400", "border": "border-purple-500",
-            "icon": "👑", "desc": "MAX_FORMALITY | HIGH_CONTEXT", 
+            "icon": <Crown/>, "desc": "MAX_FORMALITY | HIGH_CONTEXT", 
             "hook": "You approach the archive as if your presence is requested. Why do you disturb this equilibrium?" 
         },
         "STASIS_POINT": { 
             "id": "STASIS_POINT",
             "ctx": 90, "form": 80, "int": 15, "rsd": 95, 
             "voice": "Aoede", "color": "text-red-500", "border": "border-red-500",
-            "icon": "🛡️", "desc": "MAX_RSD | SUBTEXT_VIGILANCE", 
+            "icon": <Shield/>, "desc": "MAX_RSD | SUBTEXT_VIGILANCE", 
             "hook": "The current vector is sufficient. A change would be... disruptive." 
         },
         "WASTE_RECOIL": { 
             "id": "WASTE_RECOIL",
             "ctx": 0, "form": 0, "int": 60, "rsd": 20, 
             "voice": "Fenrir", "color": "text-orange-400", "border": "border-orange-500",
-            "icon": "💨", "desc": "ZERO_FILTER | BRUTAL_LITERAL", 
+            "icon": <Wind/>, "desc": "ZERO_FILTER | BRUTAL_LITERAL", 
             "hook": "You use too many words for someone with failing life support. Cut the line or drift." 
         }
     };
@@ -154,7 +185,7 @@
         }, [chat]);
 
         const startSim = (npcKey, scenarioKey) => {
-            setActiveNpc({...ARCHETYPES[npcKey]});
+            setActiveNpc({...ARCHETYPES[npcKey], id: npcKey});
             setActiveScenario(SCENARIOS[scenarioKey]);
             setChat([{ role: 'npc', text: ARCHETYPES[npcKey].hook }]);
             setPhase('SIM');
@@ -207,14 +238,14 @@
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
                     <button onClick={() => startSim("SIGNAL_LOSS", "zero_g_heist")} className="p-8 border-2 border-green-500 bg-zinc-950 hover:bg-green-900/20 text-left transition-all group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-30 text-4xl">📻</div>
+                        <div className="absolute top-0 right-0 p-4 opacity-30 text-4xl"><Radio /></div>
                         <h3 className="text-2xl font-black text-green-400 mb-2 italic">THE GLITCH</h3>
                         <p className="text-xs text-zinc-400 mb-4">Scenario: Zero-G Heist (95% Static)</p>
                         <div className="text-[0.6rem] bg-green-900/40 p-2 text-green-300 inline-block font-bold">TEST: SENSORY OVERLOAD</div>
                     </button>
                     
                     <button onClick={() => startSim("STASIS_POINT", "void_council")} className="p-8 border-2 border-red-500 bg-zinc-950 hover:bg-red-900/20 text-left transition-all group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-30 text-4xl">🛡️</div>
+                        <div className="absolute top-0 right-0 p-4 opacity-30 text-4xl"><Shield /></div>
                         <h3 className="text-2xl font-black text-red-400 mb-2 italic">THE FORTRESS</h3>
                         <p className="text-xs text-zinc-400 mb-4">Scenario: Void Council (5% Static)</p>
                         <div className="text-[0.6rem] bg-red-900/40 p-2 text-red-300 inline-block font-bold">TEST: SUBTEXT DECODING</div>
@@ -238,7 +269,7 @@
                     
                     {/* MATH LOG */}
                     <div className="flex-1 border-t-2 border-zinc-800 pt-8">
-                        <p className="text-[0.7rem] text-blue-500 tracking-widest mb-4 flex items-center gap-2 font-bold">🧮 DRAIN_CALCULATOR</p>
+                        <p className="text-[0.7rem] text-blue-500 tracking-widest mb-4 flex items-center gap-2 font-bold"><Calculator className="w-4 h-4"/> DRAIN_CALCULATOR</p>
                         {mathLog ? (
                             <div className="space-y-3 text-[0.65rem] text-zinc-400 font-mono bg-black p-4 border border-zinc-800">
                                 <div className="flex justify-between"><span>BASE_TONE_COST:</span><span className="text-white">{mathLog.breakdown.tone}</span></div>
@@ -259,7 +290,7 @@
                     
                     <header className="p-6 border-b border-zinc-800 flex justify-between items-center z-10 bg-black/80 backdrop-blur">
                         <div className="flex items-center gap-4">
-                            <div className={`p-2 border-2 ${activeNpc.border} rounded-full bg-black shadow-lg text-2xl`}>{activeNpc.icon}</div>
+                            <div className={`p-2 border-2 ${activeNpc.color.replace('text-', 'border-')} rounded-full bg-black shadow-lg`}>{activeNpc.icon}</div>
                             <div>
                                 <h2 className={`text-2xl font-black ${activeNpc.color} italic tracking-tighter`}>{activeNpc.id}</h2>
                                 <p className="text-[0.5rem] text-zinc-600 font-bold tracking-widest">{activeNpc.desc}</p>
@@ -276,7 +307,7 @@
                             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} fade-in`}>
                                 <div className={`max-w-[85%] p-6 border-l-4 ${msg.role === 'user' ? 'bg-zinc-900 border-blue-600 text-right' : 'bg-zinc-950 border-zinc-700'}`}>
                                     <p className="text-lg normal-case font-serif text-zinc-300 leading-relaxed">{msg.text}</p>
-                                    {msg.role === 'user' && <p className="text-[0.5rem] text-blue-500 mt-4 tracking-[0.2em] font-bold">TONE: {msg.tone} | DRAIN: {msg.drain}</p>}
+                                    {msg.role === 'user' && <p className="text-[0.5rem] text-blue-500 mt-2 tracking-widest">TONE: {msg.tone} | DRAIN: {msg.drain}</p>}
                                 </div>
                             </div>
                         ))}
@@ -296,6 +327,10 @@
             </div>
         );
     }
+    
+    // MOUNT THE APP
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
 </script>
 </body>
 </html>
