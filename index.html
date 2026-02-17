@@ -3,354 +3,543 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SFS v3.0: Isometric Social Engine</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>SFS v2.0 | Social Flight Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;600&display=swap');
 
-        body { background-color: #000; color: #e5e5e5; font-family: 'VT323', monospace; overflow: hidden; }
-        .pixel-font { font-family: 'Press Start 2P', cursive; }
-        .scroll-hide::-webkit-scrollbar { display: none; }
-        .fade-in { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        /* Isometric Projection */
-        .iso-grid {
-            display: grid;
-            gap: 2px;
-            transform: scale(1.5) perspective(600px) rotateX(20deg);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        :root {
+            --bg-deep: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-cyan: #06b6d4;
+            --accent-alert: #ef4444;
+            --text-main: #e2e8f0;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            height: 300px;
+        }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-deep);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .hud-panel {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            backdrop-filter: blur(8px);
         }
     </style>
+    <!-- Chosen Palette: Deep Space Slate (Background), Cyan (Data/Safe), Red (Alert/Heat) -->
+    <!-- Application Structure Plan:
+         1. Layout: Dashboard/Cockpit style. Top header for system status.
+         2. Left Col: "Flight Controls" - The interactive sliders for SFS variables (Input, Ambiguity, Masking, Cooling).
+         3. Right Col: "Heads-Up Display" (HUD) - Real-time visualization of the 4 Brain Gauges (mPFC, TPJ, Insula, Amygdala) and the Thermal Load Chart.
+         4. Bottom Section: "Flight Manual" - Tabbed content area for the theoretical deep-dive (Somatic Mandate, Archetypes, Hardware Specs).
+         5. Interaction: Sliders directly update the Chart and Gauges via JS logic.
+    -->
+    <!-- Visualization & Content Choices:
+         - Chart.js Line Chart: Visualizes "Hull Temperature" over time to show "Time to Meltdown". Goal: Demonstrate the math of metabolic decay.
+         - CSS/HTML Gauges: Visual representations of the 4 brain regions defined in the v2.0 update. Goal: Tactile feedback on internal state.
+         - Tabbed Content: efficient display of dense text from the source report without cluttering the sim.
+         - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
 </head>
-<body>
-<div id="root"></div>
+<body class="min-h-screen flex flex-col">
 
-<script type="text/babel">
-    const { useState, useEffect, useRef } = React;
-    const API_KEY = ""; // Environment will inject key here
+    <!-- HEADER: System Status -->
+    <header class="border-b border-slate-700 bg-slate-900/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 rounded-full bg-cyan-500 animate-pulse"></div>
+                <h1 class="text-xl font-bold tracking-tight text-cyan-400 mono">SFS v2.0 <span class="text-slate-500 text-sm font-normal">| NEURO-AVIONICS SUITE</span></h1>
+            </div>
+            <div class="hidden md:flex space-x-6 text-xs mono text-slate-400">
+                <span>SYS_STATUS: <span class="text-emerald-400">ONLINE</span></span>
+                <span>PROFILE: <span class="text-cyan-400">AuDHD_DEFAULT</span></span>
+                <span>THERMAL_MODEL: <span class="text-orange-400">ACTIVE</span></span>
+            </div>
+        </div>
+    </header>
 
-    // --- LOGIC BIBLE: SCENARIOS ---
-    const SCENARIOS = {
-      zero_g_heist: {
-        id: "zero_g_heist",
-        title: "ZERO-G HEIST",
-        context: "Oxygen at 4%. High-frequency alarms screaming. Station integrity compromised.",
-        user_goal: "Convince the target to cut the tether so you can reach the override valve.",
-        npc_goal: "Maintain physical lock to avoid void-drift.",
-        environmental_static: 95,
-        map_color: "bg-slate-900",
-        wall_color: "bg-slate-700"
-      },
-      neon_extraction: {
-        id: "neon_extraction",
-        title: "NEON EXTRACTION",
-        context: "Deafening club bass. Visual strobe interference. Target is in a neural-sync.",
-        user_goal: "Initiate extraction sequence immediately.",
-        npc_goal: "Preserve the neural link until the data packet is 100% verified.",
-        environmental_static: 85,
-        map_color: "bg-fuchsia-950",
-        wall_color: "bg-fuchsia-900"
-      },
-      void_council: {
-        id: "void_council",
-        title: "VOID COUNCIL",
-        context: "Infinite white space. Silence that generates internal tinnitus.",
-        user_goal: "Extract coordinate data for the next jump.",
-        npc_goal: "Measure your processing speed and emotional stability via cryptic stalling.",
-        environmental_static: 5,
-        map_color: "bg-zinc-900",
-        wall_color: "bg-zinc-800"
-      }
-    };
+    <!-- MAIN COCKPIT -->
+    <main class="flex-grow container mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-    // --- LOGIC BIBLE: ARCHETYPES ---
-    const ARCHETYPES = {
-      glitch: {
-        id: "glitch", name: "GLITCH_CORE",
-        desc: "MAX_AROUSAL | SENSORY_LEAK",
-        color: "text-yellow-400", border: "border-yellow-500", icon: "📻",
-        dials: { high_context: 10, formality: 5, intensity: 95, rsd: 30 },
-        hook: "OXY-LOW. WHY-STILL-LINKED? TETHER-STABLE. VALVE-DISTANT. DO-NOT-DISCONNECT!"
-      },
-      sovereign: {
-        id: "sovereign", name: "SOVEREIGN_LOGIC",
-        desc: "MAX_FORMALITY | HIGH_CONTEXT",
-        color: "text-purple-400", border: "border-purple-500", icon: "👑",
-        dials: { high_context: 95, formality: 95, intensity: 20, rsd: 80 },
-        hook: "You approach the archive as if your presence is requested. Why do you disturb this equilibrium?"
-      },
-      fortress: {
-        id: "fortress", name: "FORTRESS_VALVE",
-        desc: "MAX_RSD | SUBTEXT_VIGILANCE",
-        color: "text-red-500", border: "border-red-500", icon: "🛡️",
-        dials: { high_context: 90, formality: 80, intensity: 15, rsd: 95 },
-        hook: "The current vector is sufficient. A change would be... disruptive. Why do you want to alter it?"
-      }
-    };
+        <!-- LEFT COLUMN: Flight Controls (Inputs) -->
+        <section class="lg:col-span-4 space-y-6">
+            <div class="hud-panel rounded-xl p-6 shadow-lg">
+                <h2 class="text-lg font-semibold text-slate-200 mb-2 border-b border-slate-700 pb-2">Flight Controls</h2>
+                <p class="text-xs text-slate-400 mb-6">Adjust environmental and internal variables to simulate metabolic load.</p>
 
-    const TONE_COSTS = { NEUTRAL: 5, REASSURING: 12, APOLOGETIC: 18, VULNERABLE: 28, DIRECT: 8, FIRM: 22, URGENT: 15 };
-    const TILE_SIZE = 48;
-    const GRID_W = 11;
-    const GRID_H = 9;
+                <!-- SLIDER: Input Fidelity -->
+                <div class="space-y-2 mb-6">
+                    <div class="flex justify-between items-center">
+                        <label class="text-sm font-medium text-cyan-300">Input Fidelity</label>
+                        <span id="disp-input" class="mono text-xs bg-slate-800 px-2 py-1 rounded text-cyan-400">4.0x</span>
+                    </div>
+                    <input type="range" id="slider-input" min="1" max="10" step="0.5" value="4.0" oninput="updateSim()">
+                    <p class="text-[10px] text-slate-500">Sensory Gating. 1.0 = Neurotypical, 10.0 = Raw Data Stream.</p>
+                </div>
 
-    // Map: 1=Wall, 0=Floor, 2=NPC, 3=Player
-    const BASE_MAP = [
-      [1,1,1,1,1,1,1,1,1,1,1],
-      [1,0,0,0,0,0,0,0,0,0,1],
-      [1,0,0,0,1,1,0,0,0,0,1],
-      [1,0,0,0,1,1,0,0,0,0,1],
-      [1,0,0,0,0,0,0,1,0,0,1],
-      [1,0,0,0,0,0,2,1,0,0,1],
-      [1,0,0,0,0,0,0,0,0,0,1],
-      [1,1,1,1,1,1,1,1,1,1,1]
-    ];
+                <!-- SLIDER: Ambiguity -->
+                <div class="space-y-2 mb-6">
+                    <div class="flex justify-between items-center">
+                        <label class="text-sm font-medium text-purple-300">Ambiguity (TPJ)</label>
+                        <span id="disp-ambiguity" class="mono text-xs bg-slate-800 px-2 py-1 rounded text-purple-400">2.0</span>
+                    </div>
+                    <input type="range" id="slider-ambiguity" min="1" max="10" step="0.5" value="2.0" oninput="updateSim()">
+                    <p class="text-[10px] text-slate-500">Signal Clarity. 1.0 = Blunt/Direct, 10.0 = Passive-Aggressive.</p>
+                </div>
 
-    // --- AI BRIDGE ---
-    const callGemini = async (prompt, sys) => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
-        try {
-            const res = await fetch(url, { method: 'POST', body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: sys }] }
-            })});
-            const data = await res.json();
-            return data.candidates?.[0]?.content?.parts?.[0]?.text;
-        } catch (e) { return "ERROR: Connection severed."; }
-    };
+                <!-- SLIDER: Masking -->
+                <div class="space-y-2 mb-6">
+                    <div class="flex justify-between items-center">
+                        <label class="text-sm font-medium text-orange-300">Masking (mPFC)</label>
+                        <span id="disp-masking" class="mono text-xs bg-slate-800 px-2 py-1 rounded text-orange-400">5.0</span>
+                    </div>
+                    <input type="range" id="slider-masking" min="0" max="20" step="1" value="5" oninput="updateSim()">
+                    <p class="text-[10px] text-slate-500">Manual Rendering. 0 = Authentic, 20 = High Performance.</p>
+                </div>
 
-    // --- APP COMPONENT ---
-    function App() {
-        const [phase, setPhase] = useState('SPLASH'); 
-        const [activeScenario, setActiveScenario] = useState(null);
-        const [activeNpc, setActiveNpc] = useState(null);
-        const [chat, setChat] = useState([]);
-        const [reserve, setReserve] = useState(100);
-        const [resolution, setResolution] = useState(0); 
-        const [isProcessing, setIsProcessing] = useState(false);
-        const [debugMode, setDebugMode] = useState(false);
-        const [playerPos, setPlayerPos] = useState({x: 1, y: 1});
-        const [npcPos, setNpcPos] = useState({x: 6, y: 5});
-        const chatEndRef = useRef(null);
+                <!-- SLIDER: Cooling -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-sm font-medium text-emerald-300">Active Cooling</label>
+                        <span id="disp-cooling" class="mono text-xs bg-slate-800 px-2 py-1 rounded text-emerald-400">5.0</span>
+                    </div>
+                    <input type="range" id="slider-cooling" min="0" max="30" step="1" value="5" oninput="updateSim()">
+                    <p class="text-[10px] text-slate-500">Recovery. Stimming, Silence, or Safe Peer Co-regulation.</p>
+                </div>
+            </div>
 
-        // Movement Logic
-        useEffect(() => {
-            const handleKeyDown = (e) => {
-                if (e.key === '`') setDebugMode(prev => !prev);
-                if (phase === 'ROAM') {
-                    let dx = 0, dy = 0;
-                    if (e.key === 'ArrowUp' || e.key === 'w') dy = -1;
-                    if (e.key === 'ArrowDown' || e.key === 's') dy = 1;
-                    if (e.key === 'ArrowLeft' || e.key === 'a') dx = -1;
-                    if (e.key === 'ArrowRight' || e.key === 'd') dx = 1;
+            <!-- SIM RESULTS BOX -->
+            <div class="hud-panel rounded-xl p-6 shadow-lg border-l-4 border-l-cyan-500" id="status-panel">
+                <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-1">System Status</h3>
+                <div class="flex items-baseline space-x-2">
+                    <span id="system-status-text" class="text-2xl font-black text-emerald-400 mono">STABLE</span>
+                </div>
+                <p id="system-status-desc" class="text-xs text-slate-400 mt-2">Metabolic gain is within operational limits.</p>
+                <div class="mt-4 pt-4 border-t border-slate-700 flex justify-between text-xs mono">
+                    <span>NET DELTA (ΔM):</span>
+                    <span id="val-delta" class="text-white font-bold">0.0</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: HUD & Visualization -->
+        <section class="lg:col-span-8 space-y-6">
+            
+            <!-- THE 4-GAUGE CLUSTER (The Social Brain Network) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- mPFC Gauge -->
+                <div class="hud-panel p-4 rounded-lg text-center">
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">mPFC</div>
+                    <div class="text-sm font-bold text-orange-400 mb-2">Mask Integrity</div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="gauge-mpfc" class="bg-orange-500 h-full transition-all duration-500" style="width: 25%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 mono" id="text-mpfc">Load: Low</div>
+                </div>
+
+                <!-- TPJ Gauge -->
+                <div class="hud-panel p-4 rounded-lg text-center">
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">TPJ</div>
+                    <div class="text-sm font-bold text-purple-400 mb-2">Calc Cycles</div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="gauge-tpj" class="bg-purple-500 h-full transition-all duration-500" style="width: 20%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 mono" id="text-tpj">Load: Low</div>
+                </div>
+
+                <!-- Insula Gauge -->
+                <div class="hud-panel p-4 rounded-lg text-center">
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Insula</div>
+                    <div class="text-sm font-bold text-red-400 mb-2">Hull Pressure</div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="gauge-insula" class="bg-red-500 h-full transition-all duration-500" style="width: 10%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 mono" id="text-insula">Stable</div>
+                </div>
+
+                <!-- Amygdala Gauge -->
+                <div class="hud-panel p-4 rounded-lg text-center">
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Amygdala</div>
+                    <div class="text-sm font-bold text-yellow-400 mb-2">Threat Radar</div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="gauge-amyg" class="bg-yellow-500 h-full transition-all duration-500" style="width: 15%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 mono" id="text-amyg">Scanning</div>
+                </div>
+            </div>
+
+            <!-- THERMAL CHART -->
+            <div class="hud-panel rounded-xl p-6 shadow-lg h-96 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-200">Thermal Hull Projection (60m)</h2>
+                    <div class="flex items-center space-x-2 text-[10px] text-slate-400">
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span> <span>Meltdown Threshold</span>
+                    </div>
+                </div>
+                <div class="chart-container flex-grow">
+                    <canvas id="thermalChart"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- BOTTOM SECTION: Flight Manual (Theory) -->
+        <section class="lg:col-span-12 mt-8">
+            <div class="hud-panel rounded-xl overflow-hidden">
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-700 bg-slate-800/50">
+                    <button class="px-6 py-3 text-sm font-medium text-cyan-400 border-b-2 border-cyan-400 focus:outline-none transition-colors" onclick="switchTab('tab-somatic', this)">The Somatic Mandate</button>
+                    <button class="px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 focus:outline-none transition-colors" onclick="switchTab('tab-hardware', this)">Hardware Specs</button>
+                    <button class="px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 focus:outline-none transition-colors" onclick="switchTab('tab-protocols', this)">Recovery Protocols</button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="p-8 min-h-[300px]">
                     
-                    if (e.key === ' ' || e.key === 'Enter') { checkInteraction(); return; }
-                    
-                    if (dx !== 0 || dy !== 0) {
-                        const nx = playerPos.x + dx;
-                        const ny = playerPos.y + dy;
-                        if (BASE_MAP[ny] && BASE_MAP[ny][nx] !== 1 && !(nx === npcPos.x && ny === npcPos.y)) {
-                            setPlayerPos({ x: nx, y: ny });
+                    <!-- TAB 1: Somatic Mandate -->
+                    <div id="tab-somatic" class="tab-content block animate-fade-in">
+                        <h3 class="text-xl font-bold text-white mb-4">Social Navigation is Not a Skill.</h3>
+                        <p class="text-slate-300 mb-6 max-w-3xl leading-relaxed">
+                            Traditional models treat social interaction as a charisma check. SFS v2.0 operates on the <strong class="text-cyan-400">Somatic Mandate</strong>: Social navigation is a metabolic expenditure. Every interaction has a CO2 equivalent in glucose and dopamine.
+                        </p>
+                        <div class="grid md:grid-cols-2 gap-8">
+                            <div class="bg-slate-800/50 p-5 rounded-lg border border-slate-700">
+                                <h4 class="text-sm font-bold text-orange-300 mb-2">The Translation Tax</h4>
+                                <p class="text-xs text-slate-400">Communication requires an active "Compiler" to translate literal internal signals into external subtext. This draws directly from your Regulation Reserve.</p>
+                            </div>
+                            <div class="bg-slate-800/50 p-5 rounded-lg border border-slate-700">
+                                <h4 class="text-sm font-bold text-purple-300 mb-2">Coupled Oscillators</h4>
+                                <p class="text-xs text-slate-400">Interaction is a feedback loop. The stress (Allostatic Heat) of one peer increases the Environmental Viscosity for the other.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: Hardware Specs -->
+                    <div id="tab-hardware" class="tab-content hidden animate-fade-in">
+                        <h3 class="text-xl font-bold text-white mb-4">The Social Brain Network (v2.0)</h3>
+                        <p class="text-slate-300 mb-6 max-w-3xl">
+                            We have replaced the abstract "8-Dials" with the actual biological regions responsible for social processing.
+                        </p>
+                        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-slate-800/50 p-4 rounded border border-slate-700">
+                                <span class="text-xs font-bold text-orange-400 block mb-1">mPFC</span>
+                                <span class="text-[10px] text-slate-500 uppercase">Simulator</span>
+                                <p class="text-xs text-slate-300 mt-2">Handles self-projection and masking. High load when pretending to be "normal."</p>
+                            </div>
+                            <div class="bg-slate-800/50 p-4 rounded border border-slate-700">
+                                <span class="text-xs font-bold text-purple-400 block mb-1">TPJ</span>
+                                <span class="text-[10px] text-slate-500 uppercase">Vector Compass</span>
+                                <p class="text-xs text-slate-300 mt-2">Theory of Mind. Predicts others' intent. High load in ambiguous/passive-aggressive environments.</p>
+                            </div>
+                            <div class="bg-slate-800/50 p-4 rounded border border-slate-700">
+                                <span class="text-xs font-bold text-red-400 block mb-1">Anterior Insula</span>
+                                <span class="text-[10px] text-slate-500 uppercase">Hull Sensors</span>
+                                <p class="text-xs text-slate-300 mt-2">Interoception. The physical feeling of awkwardness or tension in the chest.</p>
+                            </div>
+                            <div class="bg-slate-800/50 p-4 rounded border border-slate-700">
+                                <span class="text-xs font-bold text-yellow-400 block mb-1">Amygdala</span>
+                                <span class="text-[10px] text-slate-500 uppercase">Radar</span>
+                                <p class="text-xs text-slate-300 mt-2">Threat detection. Raises shields when environment is hostile.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: Protocols -->
+                    <div id="tab-protocols" class="tab-content hidden animate-fade-in">
+                        <h3 class="text-xl font-bold text-white mb-4">Emergency & Recovery Protocols</h3>
+                        <div class="space-y-4 max-w-3xl">
+                            <div class="flex items-start">
+                                <div class="bg-red-500/20 p-2 rounded text-red-400 mr-4 font-mono font-bold text-xs">TCB</div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-200">Thermal Circuit Breaker</h4>
+                                    <p class="text-xs text-slate-400 mt-1">If Hull Temp hits 100, mandatory 30m separation. No "last words." Total disconnect to cool the Insula.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-cyan-500/20 p-2 rounded text-cyan-400 mr-4 font-mono font-bold text-xs">DFZ</div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-200">Defensiveness-Free Zone</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Feedback is a system update, not a hull breach. Drop mPFC masking to increase bandwidth.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-emerald-500/20 p-2 rounded text-emerald-400 mr-4 font-mono font-bold text-xs">DOCK</div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-200">Safe Peer Docking</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Engage with a high-trust peer to offload thermal energy. Use direct, blunt questions to sync TPJs.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="container mx-auto px-4 py-6 text-center text-[10px] text-slate-600 mono">
+        NEXUS_OS // PROJECT_SFS_v2.0 // SIGNAL_FIDELITY_VERIFIED
+    </footer>
+
+    <script>
+        // --- CORE LOGIC: SFS MATH MODEL ---
+        // Formula: ΔM = ((Input * Ambiguity) + Masking) - Cooling
+        
+        let chartInstance = null;
+
+        function initChart() {
+            const ctx = document.getElementById('thermalChart').getContext('2d');
+            
+            // Gradient for the line
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(239, 68, 68, 0.5)'); // Red at top
+            gradient.addColorStop(1, 'rgba(6, 182, 212, 0.05)'); // Cyan at bottom
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 61}, (_, i) => i + 'm'), // 0 to 60m
+                    datasets: [{
+                        label: 'Hull Temperature',
+                        data: [],
+                        borderColor: '#06b6d4',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHitRadius: 10
+                    },
+                    {
+                        label: 'Meltdown Threshold',
+                        data: Array(61).fill(100),
+                        borderColor: '#ef4444',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 }, // Instant updates for slider feel
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#94a3b8',
+                            borderColor: '#334155',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#64748b', font: { size: 10 } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 150,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#64748b', font: { size: 10 } }
                         }
                     }
                 }
-            };
-            window.addEventListener('keydown', handleKeyDown);
-            return () => window.removeEventListener('keydown', handleKeyDown);
-        }, [phase, playerPos, npcPos]);
+            });
+        }
 
-        useEffect(() => {
-            if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }, [chat]);
+        function updateSim() {
+            // 1. Get Values
+            const input = parseFloat(document.getElementById('slider-input').value);
+            const ambiguity = parseFloat(document.getElementById('slider-ambiguity').value);
+            const masking = parseFloat(document.getElementById('slider-masking').value);
+            const cooling = parseFloat(document.getElementById('slider-cooling').value);
 
-        const checkInteraction = () => {
-            const dist = Math.abs(playerPos.x - npcPos.x) + Math.abs(playerPos.y - npcPos.y);
-            if (dist === 1) {
-                setPhase('SIM');
-                if (chat.length === 0) setChat([{ role: 'npc', text: activeNpc.hook }]);
+            // 2. Update Display Text
+            document.getElementById('disp-input').innerText = input.toFixed(1) + 'x';
+            document.getElementById('disp-ambiguity').innerText = ambiguity.toFixed(1);
+            document.getElementById('disp-masking').innerText = masking.toFixed(0);
+            document.getElementById('disp-cooling').innerText = cooling.toFixed(0);
+
+            // 3. Run Simulation Logic
+            let temp = 0;
+            let dataPoints = [];
+            let meltdownTime = -1;
+
+            for (let t = 0; t <= 60; t++) {
+                // The Math: Gain = (Input * Ambiguity) + Masking
+                const gain = (input * ambiguity) + masking;
+                const net = gain - cooling;
+                
+                temp += net;
+                temp = Math.max(0, temp); // Can't be cooler than 0
+                dataPoints.push(temp);
+
+                if (temp >= 100 && meltdownTime === -1) {
+                    meltdownTime = t;
+                }
             }
-        };
 
-        const submitTurn = async (e) => {
-            e.preventDefault();
-            const text = e.target.userInput.value;
-            const tone = e.target.tone.value;
-            if (!text || isProcessing) return;
-            setIsProcessing(true);
-            e.target.userInput.value = "";
-
-            // 1. Math (Drain)
-            const contextDelta = Math.abs(15 - activeNpc.dials.high_context);
-            const drain = Math.round((TONE_COSTS[tone] + (contextDelta * 0.4) + (activeScenario.environmental_static / 4)));
-            setReserve(prev => Math.max(0, prev - drain));
-            setChat(prev => [...prev, { role: 'user', text, tone, drain }]);
-
-            // 2. AI (Response)
-            const sys = `
-                SCENARIO: ${activeScenario.context}
-                USER_GOAL: ${activeScenario.user_goal}
-                NPC: ${activeNpc.name}. ${activeNpc.desc}.
-                NPC_DIALS: RSD=${activeNpc.dials.rsd}, Context=${activeNpc.dials.high_context}.
-                User said: "${text}" (Tone: ${tone}).
-                Respond in character. If Context Dial > 80, be vague.
-                Return JSON: {"reply": "...", "progress": number(0-25)}
-            `;
+            // 4. Update Chart
+            chartInstance.data.datasets[0].data = dataPoints;
             
-            const rawResult = await callGemini(text, sys);
-            try {
-                const data = JSON.parse(rawResult.match(/\{.*\}/s)[0]);
-                setChat(prev => [...prev, { role: 'npc', text: data.reply }]);
-                setResolution(prev => Math.min(100, prev + data.progress));
-            } catch (e) {
-                setChat(prev => [...prev, { role: 'npc', text: "[ERROR]: Signal corruption. Repeat." }]);
+            // Dynamic Color Change based on Danger
+            if (meltdownTime !== -1) {
+                chartInstance.data.datasets[0].borderColor = '#ef4444'; // Red
+            } else {
+                chartInstance.data.datasets[0].borderColor = '#06b6d4'; // Cyan
             }
-            setIsProcessing(false);
-            if (resolution >= 100 || reserve <= 0) setPhase('SUMMARY');
-        };
+            
+            chartInstance.update();
 
-        // --- RENDERERS ---
-        if (phase === 'SPLASH') return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-black text-white">
-                <h1 className="text-8xl font-black italic text-blue-600 mb-8 tracking-tighter">SFS_v3.0</h1>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-                    {Object.values(SCENARIOS).map(s => (
-                        <button key={s.id} onClick={() => { setActiveScenario(s); setPhase('SETUP'); }} className="p-8 border-2 border-zinc-800 bg-zinc-950 hover:border-blue-500 text-left transition-all">
-                            <h3 className="text-2xl font-bold mb-2 uppercase">{s.title}</h3>
-                            <p className="text-xs text-zinc-500">{s.context}</p>
-                        </button>
-                    ))}
-                </div>
-            </div>
-        );
+            // 5. Update Status Panel
+            const statusText = document.getElementById('system-status-text');
+            const statusDesc = document.getElementById('system-status-desc');
+            const statusPanel = document.getElementById('status-panel');
+            const deltaDisp = document.getElementById('val-delta');
 
-        if (phase === 'SETUP') return (
-            <div className="max-w-6xl mx-auto py-24 px-8 min-h-screen text-white bg-black uppercase">
-                <header className="border-b-2 border-zinc-900 pb-12 mb-12">
-                    <h1 className="text-6xl font-black italic text-blue-600">Select_Target</h1>
-                </header>
-                <div className="grid grid-cols-3 gap-8">
-                    {Object.values(ARCHETYPES).map(npc => (
-                        <button key={npc.id} onClick={() => { setActiveNpc(npc); setPhase('ROAM'); }} className={`p-8 border-2 ${npc.border} bg-zinc-950 hover:bg-black transition-all text-left`}>
-                            <div className="text-4xl mb-4">{npc.icon}</div>
-                            <h3 className={`text-xl font-bold ${npc.color} mb-2`}>{npc.name}</h3>
-                            <p className="text-[0.6rem] text-zinc-500 font-bold">{npc.desc}</p>
-                        </button>
-                    ))}
-                </div>
-            </div>
-        );
+            const currentDelta = ((input * ambiguity) + masking) - cooling;
+            deltaDisp.innerText = currentDelta.toFixed(1);
+            if(currentDelta > 0) deltaDisp.classList.add('text-red-400');
+            else deltaDisp.classList.remove('text-red-400');
 
-        if (phase === 'ROAM') return (
-            <div className={`h-screen ${activeScenario.map_color} flex items-center justify-center relative overflow-hidden text-white`}>
-                {/* HUD */}
-                <div className="absolute top-8 left-8 bg-black/90 p-6 border-2 border-zinc-800 z-50">
-                    <div className="text-blue-500 font-bold tracking-widest text-xs mb-2">{activeScenario.title}</div>
-                    <div className="text-[0.6rem] text-zinc-600">
-                        <p>TARGET: {activeNpc.name}</p>
-                        <p>STATIC: {activeScenario.environmental_static}%</p>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-zinc-800 text-[0.5rem] text-zinc-500">
-                        WASD to Move | SPACE to Interact
-                    </div>
-                </div>
+            if (meltdownTime !== -1) {
+                statusText.innerText = "THERMAL RUNAWAY";
+                statusText.className = "text-2xl font-black text-red-500 mono animate-pulse";
+                statusDesc.innerText = `Critical Failure predicted at T-minus ${meltdownTime} minutes.`;
+                statusPanel.className = "hud-panel rounded-xl p-6 shadow-lg border-l-4 border-l-red-500 bg-red-900/10";
+            } else {
+                statusText.innerText = "SYSTEM STABLE";
+                statusText.className = "text-2xl font-black text-emerald-400 mono";
+                statusDesc.innerText = "Cooling systems operational. Load is sustainable.";
+                statusPanel.className = "hud-panel rounded-xl p-6 shadow-lg border-l-4 border-l-emerald-500";
+            }
 
-                {/* GRID */}
-                <div className="iso-grid" style={{ gridTemplateColumns: `repeat(${GRID_W}, ${TILE_SIZE}px)` }}>
-                    {BASE_MAP.map((row, y) => row.map((cell, x) => {
-                        let cellClass = `w-[${TILE_SIZE}px] h-[${TILE_SIZE}px] flex items-center justify-center transition-all duration-200 `;
-                        
-                        if (cell === 1) cellClass += activeScenario.wall_color + " shadow-xl border-t border-white/10";
-                        else cellClass += "bg-black/40 border border-white/5";
+            // 6. Update Gauges (Visual Logic)
+            updateGauge('gauge-mpfc', 'text-mpfc', masking, 20); // Masking drives mPFC
+            updateGauge('gauge-tpj', 'text-tpj', ambiguity, 10); // Ambiguity drives TPJ
+            
+            // Insula drives off Hull Temp (current end state relative to 100)
+            const currentTemp = dataPoints[10]; // Look at 10m mark for immediate feedback
+            updateGauge('gauge-insula', 'text-insula', currentTemp, 100);
 
-                        let content = null;
-                        if (x === playerPos.x && y === playerPos.y) {
-                            content = <div className="text-2xl animate-pulse">👤</div>; // Player
-                            cellClass += " bg-blue-900/40 border-blue-500/50";
-                        } else if (x === npcPos.x && y === npcPos.y) {
-                            content = <div className="text-2xl">{activeNpc.icon}</div>; // NPC
-                        }
+            // Amygdala drives off Input * Ambiguity (Threat detection)
+            const threatLevel = input * ambiguity;
+            updateGauge('gauge-amyg', 'text-amyg', threatLevel, 100);
+        }
 
-                        return <div key={`${x}-${y}`} className={cellClass}>{content}</div>;
-                    }))}
-                </div>
-            </div>
-        );
+        function updateGauge(id, textId, val, max) {
+            const pct = Math.min(100, Math.max(0, (val / max) * 100));
+            const el = document.getElementById(id);
+            const txt = document.getElementById(textId);
+            
+            el.style.width = `${pct}%`;
+            
+            if (pct > 80) {
+                el.classList.remove('bg-orange-500', 'bg-purple-500', 'bg-emerald-500', 'bg-yellow-500');
+                el.classList.add('bg-red-500');
+                txt.innerText = "CRITICAL";
+                txt.classList.add('text-red-400');
+            } else {
+                // Reset colors (simplified logic)
+                txt.innerText = pct < 40 ? "Nominal" : "Elevated";
+                txt.classList.remove('text-red-400');
+                
+                // Restore original color classes based on ID context (a bit hacky but works for sim)
+                if(id.includes('mpfc') && pct <= 80) el.className = "bg-orange-500 h-full transition-all duration-500";
+                if(id.includes('tpj') && pct <= 80) el.className = "bg-purple-500 h-full transition-all duration-500";
+                if(id.includes('insula') && pct <= 80) el.className = "bg-red-500 h-full transition-all duration-500";
+                if(id.includes('amyg') && pct <= 80) el.className = "bg-yellow-500 h-full transition-all duration-500";
+            }
+        }
 
-        if (phase === 'SIM') return (
-            <div className="flex h-screen bg-black text-white font-mono uppercase">
-                {/* HUD Sidebar */}
-                <div className="w-80 border-r border-zinc-900 p-8 flex flex-col justify-between bg-zinc-950/20">
-                    <div>
-                        <div className="mb-8 border-b border-zinc-900 pb-8">
-                            <p className="text-[0.6rem] text-zinc-500 font-bold tracking-widest mb-2">TARGET_GOAL</p>
-                            <p className="text-xs italic text-zinc-400 leading-relaxed lowercase">"{activeScenario.user_goal}"</p>
-                        </div>
-                        <p className="text-[0.6rem] text-zinc-500 tracking-widest mb-2 font-bold">RESERVE</p>
-                        <div className="text-6xl font-black mb-2 tracking-tighter">{reserve}%</div>
-                        <div className="h-2 bg-zinc-900 overflow-hidden border border-zinc-700">
-                            <div className={`h-full transition-all duration-500 ${reserve < 20 ? 'bg-red-600' : 'bg-green-500'}`} style={{width: `${reserve}%`}}></div>
-                        </div>
-                    </div>
-                    <button onClick={() => setPhase('ROAM')} className="text-xs text-zinc-600 underline hover:text-white">BREAK_LINK</button>
-                </div>
+        // Tab Switching Logic
+        function switchTab(tabId, btn) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.add('hidden');
+            });
+            // Show selected
+            document.getElementById(tabId).classList.remove('hidden');
 
-                {/* Chat Interface */}
-                <main className="flex-1 flex flex-col relative">
-                    <header className="p-8 border-b border-zinc-900 flex justify-between items-center z-10 bg-black/90 backdrop-blur">
-                        <div className="flex items-center gap-4">
-                            <div className={`text-4xl`}>{activeNpc.icon}</div>
-                            <div>
-                                <h2 className={`text-2xl font-black ${activeNpc.color} italic tracking-tighter`}>{activeNpc.name}</h2>
-                                <p className="text-[0.5rem] text-zinc-600 font-bold tracking-widest">{activeNpc.desc}</p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                             <p className="text-[0.6rem] text-zinc-500 font-bold tracking-widest">RESOLUTION</p>
-                             <p className="text-2xl font-black text-blue-500">{resolution}%</p>
-                        </div>
-                    </header>
+            // Reset button styles
+            document.querySelectorAll('button').forEach(b => {
+                b.classList.remove('text-cyan-400', 'border-b-2', 'border-cyan-400');
+                b.classList.add('text-slate-400');
+            });
+            // Highlight selected button
+            btn.classList.remove('text-slate-400');
+            btn.classList.add('text-cyan-400', 'border-b-2', 'border-cyan-400');
+        }
 
-                    <div className="flex-1 overflow-y-auto p-8 space-y-6 z-10 scroll-hide">
-                        {chat.map((msg, i) => (
-                            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} fade-in`}>
-                                <div className={`max-w-[85%] p-6 border-l-4 ${msg.role === 'user' ? 'bg-zinc-900 border-blue-600 text-right' : 'bg-zinc-950 border-zinc-700'}`}>
-                                    <p className="text-lg normal-case font-serif text-zinc-300 leading-relaxed">{msg.text}</p>
-                                    {msg.role === 'user' && <p className="text-[0.5rem] text-blue-500 mt-2 tracking-widest">TONE: {msg.tone} | DRAIN: {msg.drain}</p>}
-                                </div>
-                            </div>
-                        ))}
-                        <div ref={chatEndRef}></div>
-                        {isProcessing && <div className="text-zinc-700 text-[0.6rem] animate-pulse px-4 tracking-widest text-center">NEURAL_PROCESSING...</div>}
-                    </div>
+        // Init
+        window.addEventListener('load', () => {
+            initChart();
+            updateSim();
+        });
 
-                    <form onSubmit={submitTurn} className="p-6 bg-zinc-950 border-t border-zinc-900 z-10">
-                        <div className="flex gap-4">
-                            <select name="tone" className="bg-black border border-zinc-800 text-xs text-white p-4 w-40 focus:border-blue-500 outline-none font-bold cursor-pointer">
-                                {Object.keys(TONE_COSTS).map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                            <input name="userInput" autoComplete="off" className="flex-1 bg-black border border-zinc-800 text-white p-4 focus:border-blue-500 outline-none font-serif text-lg pl-6" placeholder="Transmit signal..." />
-                            <button type="submit" disabled={isProcessing} className="bg-blue-600 text-white px-8 font-bold text-xs hover:bg-blue-500 transition-all disabled:opacity-50">SEND</button>
-                        </div>
-                    </form>
-                </main>
-            </div>
-        );
-        
-        if (phase === 'SUMMARY') return (
-            <div className="min-h-screen bg-black text-white font-mono uppercase flex flex-col items-center justify-center p-8 text-center">
-                <h1 className="text-8xl font-black italic tracking-tighter mb-8">{resolution >= 100 ? "SUCCESS" : "CRASH"}</h1>
-                <p className="text-zinc-500 tracking-widest mb-12">RESERVE: {reserve}% | RESOLUTION: {resolution}%</p>
-                <button onClick={() => window.location.reload()} className="bg-white text-black px-12 py-4 font-bold text-xl hover:bg-zinc-300">RESET</button>
-            </div>
-        );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-</script>
+    </script>
 </body>
 </html>
