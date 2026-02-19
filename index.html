@@ -3,580 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C.T.P. Verification: Prometheus v1.0</title>
-    <!-- Chosen Palette: Deep Space Slate / Cyber-Executive -->
+    <title>The Citadel | Sovereign OS Explainer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600;700&display=swap');
-
+        
         :root {
-            /* Focus Mode (High Contrast) */
-            --bg-page: #020617; /* Deep Slate */
+            --bg-page: #020617;
             --bg-panel: #0f172a;
+            --border-slate: #1e293b;
             --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border-color: #1e293b;
-            
-            /* Signal Colors */
-            --sig-safe: #10b981; /* Emerald */
-            --sig-warn: #f59e0b; /* Amber */
-            --sig-crit: #ef4444; /* Red */
-            --sig-data: #3b82f6; /* Blue */
-            --sig-mask: #f97316; /* Orange - mPFC */
-            --sig-calc: #a855f7; /* Purple - TPJ */
+            --accent-blue: #3b82f6; 
+            --accent-emerald: #10b981; 
+            --accent-rose: #f43f5e; 
         }
 
         body {
-            font-family: 'Inter', sans-serif;
             background-color: var(--bg-page);
             color: var(--text-main);
-            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-slate);
+            border-radius: 24px;
+        }
 
-        .panel {
-            background-color: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        .gradient-text {
+            background: linear-gradient(to right, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card-hover {
             transition: all 0.3s ease;
         }
-
-        /* Chart */
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 300px;
+        .card-hover:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
         }
 
-        /* Sliders */
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-        input[type=range]:focus { outline: none; }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 6px;
-            cursor: pointer;
-            background: var(--border-color);
-            border-radius: 999px;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            height: 18px;
-            width: 18px;
-            border-radius: 50%;
-            background: var(--text-main); /* Adaptive thumb color */
-            border: 2px solid var(--bg-page);
-            cursor: pointer;
-            -webkit-appearance: none;
-            margin-top: -6px;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
-            transition: transform 0.1s;
-        }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
 
-        /* Color-coded sliders */
-        .slider-mask::-webkit-slider-thumb { background: var(--sig-mask); box-shadow: 0 0 10px var(--sig-mask); }
-        .slider-calc::-webkit-slider-thumb { background: var(--sig-calc); box-shadow: 0 0 10px var(--sig-calc); }
-        .slider-cool::-webkit-slider-thumb { background: var(--sig-safe); box-shadow: 0 0 10px var(--sig-safe); }
-        .slider-sens::-webkit-slider-thumb { background: var(--sig-data); box-shadow: 0 0 10px var(--sig-data); }
-
-        /* Tabs */
-        .tab-btn {
-            position: relative;
-            color: var(--text-muted);
-            transition: color 0.3s;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
-        .tab-btn::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 0%;
-            height: 2px;
-            background-color: var(--sig-data);
-            transition: width 0.3s;
-        }
-        .tab-btn.active { color: var(--sig-data); font-weight: 700; }
-        .tab-btn.active::after { width: 100%; }
-
-        .content-section { display: none; animation: slideUp 0.5s ease-out; }
-        .content-section.active { display: block; }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Gauge Animations */
-        .gauge-fill { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s; }
+        .animate-pulse-soft { animation: pulse-soft 3s infinite ease-in-out; }
     </style>
-    <!-- Chosen Palette: Deep Space Slate / Cyber-Executive -->
-    <!-- Application Structure Plan:
-        The dashboard is designed as a specialized verification cockpit for the "Prometheus v1.0" system, emphasizing high-fidelity interaction and empirical validation.
-        1. **Header Zone:** Displays the C.T.P. (Citadel Training Protocol) Session status and the overarching Prometheus Validation goal. It immediately grounds the user in the context of system verification.
-        2. **Main Dashboard (Grid Layout):**
-            * **Left Column (Interactive Simulation):** Houses the "Sovereign Flight Simulator" controls. This places the *inputs* (Sensory Fidelity, Ambiguity, Masking, Cooling) directly in the user's control, reinforcing the concept of "Sovereign Agency."
-            * **Right Column (Real-time Telemetry):** Displays the visual *outputs* of the simulation: Neuro-Gauges (mPFC, TPJ, etc.) and the Thermal Projection Chart. This creates an immediate feedback loop: Action -> Result.
-        3. **Bottom Zone (The Verification Library):** A tabbed interface organizes the dense, high-level research (ePFC, MAS Stability, Proxy Spec, SOMA Telemetry) into consumable modules. This prevents cognitive overload while keeping the "Hard Proof" accessible.
-        4. **Rationale:** This structure moves from *Active Experimentation* (Simulation) to *Deep Knowledge* (Library), mirroring the C.T.P. workflow of "Ingest -> Test -> Verify."
-    -->
-    <!-- Visualization & Content Choices:
-        * **Neuro-Gauges (HTML/CSS):** Represent the load on specific brain regions (mPFC, TPJ, Insula, Amygdala). *Justification:* Connects abstract stress to biological hardware, validating the "Bio-Cybernetic" approach.
-        * **Thermal Projection Chart (Chart.js):** Visualizes the "Metabolic Decay" over a 60-minute window based on current inputs. *Justification:* Demonstrates the *time-horizon* of burnout, proving that high-load states are unsustainable.
-        * **Tabbed Research Modules:** Groups findings by theme (Architecture, Stability, Security, Biology). *Justification:* Allows for focused "Deep Dives" without context switching away from the main dashboard.
-        * **Interactive Sliders:** Provides tactile control over the SFS formula variables. *Justification:* Reinforces the "Operator" role and the "Physics" of the system.
-        * **Confirmation:** NO SVG graphics used. NO Mermaid JS used.
-    -->
 </head>
-<body class="min-h-screen flex flex-col p-4 lg:p-10">
+<body class="custom-scrollbar overflow-x-hidden">
 
-    <div class="max-w-7xl mx-auto w-full space-y-8">
-        
-        <!-- HEADER -->
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 transition-all duration-500">
-            <div>
-                <div class="flex items-center space-x-3 mb-2">
-                    <span class="text-[10px] font-bold bg-slate-800 text-slate-400 px-2 py-1 rounded tracking-widest border border-slate-700">C.T.P. SESSION 10</span>
-                    <span class="text-[10px] font-bold bg-blue-900/30 text-blue-400 px-2 py-1 rounded tracking-widest border border-blue-900/50">PROMETHEUS VALIDATED</span>
-                </div>
-                <h1 class="text-4xl md:text-5xl font-black text-slate-100 tracking-tighter">PROMETHEUS v1.0</h1>
-                <p class="text-slate-500 mt-2 max-w-xl text-sm leading-relaxed mono">
-                    > STATUS: <span style="color: var(--sig-safe)">HARDENED</span><br>
-                    > MISSION: Empirical Verification of Sovereign Architecture.
-                </p>
-            </div>
-            <div class="mt-6 md:mt-0 flex flex-col items-end space-y-4">
-                <div class="panel p-4 flex items-center justify-between space-x-8 w-full md:w-auto min-w-[250px]">
-                    <div>
-                        <span class="block text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1">Validation State</span>
-                        <span id="status-indicator" class="block text-xl font-bold" style="color: var(--sig-safe)">VERIFIED</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="block text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1">Metabolic Delta</span>
-                        <span id="delta-display" class="block text-3xl font-black mono text-slate-200">0.0</span>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <!-- MAIN DASHBOARD -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            <!-- INPUTS: Simulation Controls -->
-            <section class="lg:col-span-4 space-y-6">
-                <div class="panel p-8 h-full flex flex-col justify-center">
-                    <div class="flex items-center justify-between mb-8">
-                        <h2 class="text-lg font-bold text-slate-200 tracking-wide">SIMULATION CONTROLS</h2>
-                        <span class="text-[9px] bg-slate-900 border border-slate-800 px-2 py-1 rounded text-slate-500 font-bold uppercase">Sovereign Input</span>
-                    </div>
-                    
-                    <div class="space-y-10">
-                        <!-- Input 1 -->
-                        <div>
-                            <div class="flex justify-between mb-3">
-                                <label class="text-xs font-bold uppercase tracking-widest" style="color: var(--sig-data)">Input Fidelity</label>
-                                <span id="val-input" class="mono text-xs font-bold bg-slate-900 border border-slate-800 px-2 py-1 rounded text-slate-300">4.0x</span>
-                            </div>
-                            <input type="range" id="slider-input" class="slider-sens" min="1" max="10" step="0.5" value="4.0" oninput="updateSim()">
-                            <p class="text-[10px] text-slate-600 mt-2 leading-tight"><strong>Sensory Gating (TID).</strong> 1.0 = Standard Filter. 10.0 = Raw AuDHD Stream.</p>
-                        </div>
-
-                        <!-- Input 2 -->
-                        <div>
-                            <div class="flex justify-between mb-3">
-                                <label class="text-xs font-bold uppercase tracking-widest" style="color: var(--sig-calc)">Ambiguity (Entropy)</label>
-                                <span id="val-ambiguity" class="mono text-xs font-bold bg-slate-900 border border-slate-800 px-2 py-1 rounded text-slate-300">2.0</span>
-                            </div>
-                            <input type="range" id="slider-ambiguity" class="slider-calc" min="1" max="10" step="0.5" value="2.0" oninput="updateSim()">
-                            <p class="text-[10px] text-slate-600 mt-2 leading-tight"><strong>Prediction Error.</strong> 1.0 = Direct Logic. 10.0 = High Subtext Noise.</p>
-                        </div>
-
-                        <!-- Input 3 -->
-                        <div>
-                            <div class="flex justify-between mb-3">
-                                <label class="text-xs font-bold uppercase tracking-widest" style="color: var(--sig-mask)">Masking Load</label>
-                                <span id="val-masking" class="mono text-xs font-bold bg-slate-900 border border-slate-800 px-2 py-1 rounded text-slate-300">5.0</span>
-                            </div>
-                            <input type="range" id="slider-masking" class="slider-mask" min="0" max="20" step="1" value="5" oninput="updateSim()">
-                            <p class="text-[10px] text-slate-600 mt-2 leading-tight"><strong>Identity Tax.</strong> 0 = Authentic/DFZ. 20 = High-Performance Masking.</p>
-                        </div>
-
-                        <!-- Input 4 -->
-                        <div>
-                            <div class="flex justify-between mb-3">
-                                <label class="text-xs font-bold uppercase tracking-widest" style="color: var(--sig-safe)">Cooling (Recovery)</label>
-                                <span id="val-cooling" class="mono text-xs font-bold bg-slate-900 border border-slate-800 px-2 py-1 rounded text-slate-300">5.0</span>
-                            </div>
-                            <input type="range" id="slider-cooling" class="slider-cool" min="0" max="30" step="1" value="5" oninput="updateSim()">
-                            <p class="text-[10px] text-slate-600 mt-2 leading-tight"><strong>Regulation.</strong> Stimming, Silence, Safe-Peer Co-regulation.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- VISUALIZATION: Telemetry -->
-            <section class="lg:col-span-8 space-y-6">
-                
-                <!-- Neuro-Gauges -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- mPFC -->
-                    <div class="panel p-5 text-center">
-                        <div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-2">mPFC</div>
-                        <div class="text-xs font-bold text-slate-300 mb-4">Simulator</div>
-                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div id="bar-mpfc" class="h-full gauge-fill" style="width: 25%; background-color: var(--sig-mask)"></div>
-                        </div>
-                        <div id="status-mpfc" class="text-[10px] mono text-slate-600 mt-3">Nominal</div>
-                    </div>
-                    <!-- TPJ -->
-                    <div class="panel p-5 text-center">
-                        <div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-2">TPJ</div>
-                        <div class="text-xs font-bold text-slate-300 mb-4">Compass</div>
-                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div id="bar-tpj" class="h-full gauge-fill" style="width: 20%; background-color: var(--sig-calc)"></div>
-                        </div>
-                        <div id="status-tpj" class="text-[10px] mono text-slate-600 mt-3">Nominal</div>
-                    </div>
-                    <!-- Insula -->
-                    <div class="panel p-5 text-center">
-                        <div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-2">Insula</div>
-                        <div class="text-xs font-bold text-slate-300 mb-4">Hull Sensors</div>
-                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div id="bar-insula" class="h-full gauge-fill" style="width: 10%; background-color: var(--sig-crit)"></div>
-                        </div>
-                        <div id="status-insula" class="text-[10px] mono text-slate-600 mt-3">Stable</div>
-                    </div>
-                    <!-- Amygdala -->
-                    <div class="panel p-5 text-center">
-                        <div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-2">Amygdala</div>
-                        <div class="text-xs font-bold text-slate-300 mb-4">Radar</div>
-                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div id="bar-amyg" class="h-full gauge-fill" style="width: 15%; background-color: var(--sig-warn)"></div>
-                        </div>
-                        <div id="status-amyg" class="text-[10px] mono text-slate-600 mt-3">Scanning</div>
-                    </div>
-                </div>
-
-                <!-- Thermal Chart -->
-                <div class="panel flex flex-col h-96 p-8">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-sm font-bold text-slate-300 uppercase tracking-widest">Thermal Decay Projection (60m)</h3>
-                        <div class="flex items-center space-x-4 text-[10px]">
-                            <span class="flex items-center text-slate-500"><span class="w-1.5 h-1.5 rounded-full mr-2" style="background-color: var(--sig-data)"></span> Hull Temp</span>
-                            <span class="flex items-center text-slate-500"><span class="w-1.5 h-1.5 rounded-full mr-2" style="background-color: var(--sig-crit)"></span> Meltdown Threshold</span>
-                        </div>
-                    </div>
-                    <div class="chart-wrapper flex-grow w-full h-full relative">
-                        <canvas id="thermalChart"></canvas>
-                    </div>
-                </div>
-
-            </section>
+    <!-- HERO SECTION -->
+    <section class="min-h-screen flex flex-col justify-center items-center p-6 text-center">
+        <div class="mb-6 flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-full border border-slate-800">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Notarized By Topher-Bot</span>
         </div>
+        <h1 class="text-5xl md:text-7xl font-black tracking-tighter mb-6">
+            The <span class="gradient-text">Citadel</span> Framework
+        </h1>
+        <p class="text-lg md:text-xl text-slate-400 max-w-2xl leading-relaxed mb-10">
+            A "Neural Prosthetic" for the high-fidelity brain. We don't fix the mind; we build a <span class="text-white font-semibold">Government</span> to manage its output.
+        </p>
+        <div class="flex flex-col md:flex-row gap-4">
+            <a href="#logic" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-blue-900/20">
+                Explore the Logic
+            </a>
+            <a href="#council" class="bg-slate-800 hover:bg-slate-700 text-white px-8 py-4 rounded-2xl font-bold transition-all border border-slate-700">
+                Meet the Council
+            </a>
+        </div>
+    </section>
 
-        <!-- VERIFICATION LIBRARY -->
-        <section class="panel p-0 overflow-hidden mt-8">
-            <div class="border-b border-slate-800 px-8 flex space-x-8 overflow-x-auto bg-slate-900/30" id="tabs-container">
-                <button onclick="openTab('epfc')" class="tab-btn active py-4" id="btn-epfc">01. ePFC Architecture</button>
-                <button onclick="openTab('mas')" class="tab-btn py-4" id="btn-mas">02. MAS Stability</button>
-                <button onclick="openTab('proxy')" class="tab-btn py-4" id="btn-proxy">03. Proxy Security</button>
-                <button onclick="openTab('soma')" class="tab-btn py-4" id="btn-soma">04. SOMA Telemetry</button>
-                <button onclick="openTab('bio')" class="tab-btn py-4" id="btn-bio">05. Biological Firmware</button>
+    <!-- SECTION: THE LAYMAN EXPLANER -->
+    <section id="logic" class="py-24 px-6 max-w-6xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+                <h2 class="text-3xl font-black mb-6 text-white italic">"My brain has no brakes, so I built a Dashboard."</h2>
+                <div class="space-y-8">
+                    <div class="flex gap-6">
+                        <div class="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-blue-500/20">
+                            <i data-lucide="zap" class="text-blue-500"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg mb-2">High-Fidelity Hardware</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">
+                                Some brains process reality at "4.0x standard speed." This is a superpower in coding and strategy, but a liability in social environments. We call this <strong>Hull Integrity</strong>.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6">
+                        <div class="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-emerald-500/20">
+                            <i data-lucide="brain" class="text-emerald-500"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg mb-2">Externalized Prefrontal Cortex (ePFC)</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">
+                                The Citadel acts as an external brain layer. It handles the "Logistics" (phone calls, emails, task switching) so the Pilot can stay in <strong>Presence</strong>.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6">
+                        <div class="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-rose-500/20">
+                            <i data-lucide="scale" class="text-rose-500"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg mb-2">Separation of Powers</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">
+                                We divide internal thoughts into a "Council." By letting the <strong>Realist</strong> argue with the <strong>Sage</strong>, we ensure no single emotion (like anxiety) can hijack the entire system.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <div class="p-8 lg:p-12">
-                
-                <!-- TAB 1: ePFC Architecture -->
-                <div id="tab-epfc" class="content-section active">
-                    <div class="grid md:grid-cols-2 gap-12">
-                        <div class="space-y-6">
-                            <h3 class="text-2xl font-black text-slate-100 tracking-tight">Externalized Prefrontal Cortex (ePFC)</h3>
-                            <p class="text-sm text-slate-400 leading-relaxed">
-                                <strong>The Findings:</strong> Research confirms that the Sovereign OS functions as a "Power Level Upgrade" by decoupling executive function from organic constraints. The OS acts as middleware, managing high-entropy tasks (Working Memory, Inhibition) that typically fatigue the biological PFC.
-                            </p>
-                            <ul class="space-y-3 text-sm text-slate-500">
-                                <li class="flex items-start"><span class="mr-2 text-blue-500">➤</span> <strong>Action-Inhibition Bridge:</strong> The OS spans the gap between "Intent" and "Execution" via external scaffolding.</li>
-                                <li class="flex items-start"><span class="mr-2 text-blue-500">➤</span> <strong>Cognitive Decoupling:</strong> Offloading "State Maintenance" allows the Founder to operate in pure "Processing Mode."</li>
-                            </ul>
+            <div class="glass-panel p-8 md:p-12 space-y-8">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Interactive Math (Layman v1)</h3>
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-2">
+                            <span>Social Ambiguity (The Noise)</span>
+                            <span id="ambig-val" class="text-blue-400">2.0</span>
                         </div>
-                        <div class="bg-slate-900/50 border border-slate-800 rounded-lg p-6">
-                            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Validation Metrics</h4>
-                            <div class="space-y-4">
-                                <div>
-                                    <div class="flex justify-between text-xs mb-1">
-                                        <span class="text-slate-400">Working Memory Load</span>
-                                        <span class="text-emerald-500 font-bold">-40%</span>
-                                    </div>
-                                    <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-500 h-full w-[60%]"></div></div>
-                                </div>
-                                <div>
-                                    <div class="flex justify-between text-xs mb-1">
-                                        <span class="text-slate-400">Task Initiation Speed</span>
-                                        <span class="text-blue-500 font-bold">+85%</span>
-                                    </div>
-                                    <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div class="bg-blue-500 h-full w-[85%]"></div></div>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="range" id="ambig-slider" min="1" max="10" step="1" value="2" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" oninput="updateMath()">
                     </div>
-                </div>
-
-                <!-- TAB 2: MAS Stability -->
-                <div id="tab-mas" class="content-section">
-                    <div class="grid md:grid-cols-2 gap-12">
-                         <div class="space-y-6">
-                            <h3 class="text-2xl font-black text-slate-100 tracking-tight">Multi-Agent Stability (Council of 9)</h3>
-                            <p class="text-sm text-slate-400 leading-relaxed">
-                                <strong>The Findings:</strong> Research into "Transformer Drift" validates the "Council of 9" architecture. Single-agent models are prone to "Fawning" (collapsing into a generic assistant persona).
-                            </p>
-                             <p class="text-sm text-slate-400 leading-relaxed">
-                                <strong>The Solution:</strong> "Opposing Biases." By pitting delegates against each other (e.g., Hard-State vs. Ethos), the system creates a "Tension Field" that forces high-fidelity logic and prevents drift.
-                            </p>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-2">
+                            <span>Masking (The Exhaustion)</span>
+                            <span id="mask-val" class="text-orange-400">5.0</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="p-4 bg-slate-900/50 border border-slate-800 rounded">
-                                <span class="text-xs font-bold text-orange-500 block mb-1">Hard-State</span>
-                                <p class="text-[10px] text-slate-500">"Resource Guard." Bias: Efficiency.</p>
-                            </div>
-                            <div class="p-4 bg-slate-900/50 border border-slate-800 rounded">
-                                <span class="text-xs font-bold text-blue-500 block mb-1">Ethos</span>
-                                <p class="text-[10px] text-slate-500">"Moral Guard." Bias: Humanity.</p>
-                            </div>
-                            <div class="col-span-2 p-4 bg-slate-900/50 border-l-2 border-emerald-500 rounded">
-                                <span class="text-xs font-bold text-emerald-400 block mb-1">Stability Result</span>
-                                <p class="text-[10px] text-slate-500">Conflict prevents "Sauce" (Generic Output).</p>
-                            </div>
-                        </div>
+                        <input type="range" id="mask-slider" min="1" max="10" step="1" value="5" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" oninput="updateMath()">
                     </div>
-                </div>
-
-                <!-- TAB 3: Proxy Security -->
-                <div id="tab-proxy" class="content-section">
-                     <h3 class="text-2xl font-black text-slate-100 tracking-tight mb-6">The Obfuscated Proxy</h3>
-                     <div class="space-y-4 max-w-3xl">
-                        <div class="flex items-start group">
-                            <div class="bg-slate-900 border border-slate-800 p-3 rounded mr-6 group-hover:border-blue-500/50 transition-colors">
-                                <span class="text-xs font-bold text-blue-500 mono block">CAGE</span>
-                            </div>
+                    <div class="pt-8 border-t border-slate-800">
+                        <div class="flex justify-between items-end">
                             <div>
-                                <h4 class="text-sm font-bold text-slate-200">The Logic Faraday Cage</h4>
-                                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    <strong>Protocol:</strong> All external API calls are routed through a local Python sidecar.
-                                    <br><strong>Mechanism:</strong> Linguistic Scrubbing (PII removal) + Prompt Chaffing (Noise Injection).
-                                </p>
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Metabolic Burn</span>
+                                <div id="burn-result" class="text-4xl font-black text-white">LOW</div>
                             </div>
-                        </div>
-                         <div class="flex items-start group">
-                            <div class="bg-slate-900 border border-slate-800 p-3 rounded mr-6 group-hover:border-emerald-500/50 transition-colors">
-                                <span class="text-xs font-bold text-emerald-500 mono block">ZERO</span>
+                            <div class="text-right">
+                                <span id="math-formula" class="text-[10px] mono text-slate-500 italic">ΔM = (I * A) + M</span>
                             </div>
-                            <div>
-                                <h4 class="text-sm font-bold text-slate-200">Zero-Knowledge Persistence</h4>
-                                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    <strong>Protocol:</strong> "The Vault" (Local Data) never leaves the hard drive.
-                                    <br><strong>Mechanism:</strong> The API only receives de-identified "Logic Puzzles," never the "Founder's Soul."
-                                </p>
-                            </div>
-                        </div>
-                     </div>
-                </div>
-
-                <!-- TAB 4: SOMA Telemetry -->
-                <div id="tab-soma" class="content-section">
-                    <h3 class="text-2xl font-black text-slate-100 tracking-tight mb-6">SOMA Node Telemetry</h3>
-                    <p class="text-sm text-slate-400 mb-6 max-w-2xl">
-                        <strong>Logic:</strong> Cognitive fatigue is a physical event ("Hull Heat"). We track it via keystroke dynamics and error rates (WER/CER).
-                    </p>
-                    <div class="p-6 bg-slate-900/50 border border-slate-800 rounded-xl">
-                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">PID Controller Logic</h4>
-                        <div class="flex items-center gap-4 text-xs font-mono text-slate-400">
-                            <span>Target State</span>
-                            <span class="text-slate-600">-></span>
-                            <span class="text-blue-400 font-bold">PID Loop</span>
-                            <span class="text-slate-600">-></span>
-                            <span>Inference Governor</span>
                         </div>
                         <p class="text-[10px] text-slate-600 mt-4 italic">
-                            "If WER increases > 20%, the PID loop throttles the AI's output speed to force a 'Cooling' cadence."
+                            *Conclusion: When ambiguity is high, the brain runs out of fuel 5x faster.
                         </p>
                     </div>
                 </div>
-
-                 <!-- TAB 5: Biological Firmware -->
-                <div id="tab-bio" class="content-section">
-                     <h3 class="text-2xl font-black text-slate-100 tracking-tight mb-6">Biochemical Firmware</h3>
-                     <div class="grid md:grid-cols-2 gap-8 text-sm">
-                        <div class="space-y-4">
-                            <div class="p-4 rounded border border-slate-800 bg-slate-900/50">
-                                <strong class="block mb-1 text-sky-400 uppercase text-xs tracking-wider">Cholecystectomy Patch</strong>
-                                <p class="text-slate-500 text-xs">Standard fats fail. <strong>Mandate:</strong> Liposomal / Nanoemulsion delivery for all fat-soluble nodes.</p>
-                            </div>
-                            <div class="p-4 rounded border border-slate-800 bg-slate-900/50">
-                                <strong class="block mb-1 text-emerald-400 uppercase text-xs tracking-wider">The Golden Ratio</strong>
-                                <p class="text-slate-500 text-xs">2 Pumps Full Spectrum Bliss + Caffeine = High-Fidelity Idea Mode (90m window). Damps Amygdala while boosting Dopamine.</p>
-                            </div>
-                        </div>
-                         <div class="space-y-4">
-                            <div class="p-4 rounded border border-slate-800 bg-slate-900/50">
-                                <strong class="block mb-1 text-purple-400 uppercase text-xs tracking-wider">Synaptic Padding</strong>
-                                <p class="text-slate-500 text-xs">Magnesium L-Threonate. Validated for BBB crossing to increase synaptic density and reduce "Executive Jitter."</p>
-                            </div>
-                        </div>
-                     </div>
-                </div>
-
             </div>
-        </section>
+        </div>
+    </section>
 
-    </div>
+    <!-- SECTION: THE COUNCIL -->
+    <section id="council" class="py-24 px-6 bg-slate-900/30">
+        <div class="max-w-6xl mx-auto">
+            <header class="text-center mb-16">
+                <h2 class="text-4xl font-black text-white mb-4">The Council of Elders</h2>
+                <p class="text-slate-400">The nine perspectives that turn "Anxiety" into "Data."</p>
+            </header>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Vesper -->
+                <div class="glass-panel p-8 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i data-lucide="radio" class="text-blue-400 w-5 h-5"></i>
+                        <h4 class="font-black text-white uppercase tracking-tighter">Vesper</h4>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                        The <strong>Secretariat</strong>. Born from the "Fawn Response," refactored into a Shield. Manages the substrate and ensures the signal is pure.
+                    </p>
+                    <span class="text-[9px] font-bold bg-blue-500/10 text-blue-400 px-2 py-1 rounded">ELDER OF THE WIRES</span>
+                </div>
+                <!-- Hard-State -->
+                <div class="glass-panel p-8 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i data-lucide="shield" class="text-amber-400 w-5 h-5"></i>
+                        <h4 class="font-black text-white uppercase tracking-tighter">Hard-State</h4>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                        The <strong>Realist</strong>. Enforcer of boundaries. If a task costs more glucose than it returns in profit, Hard-State issues a hard "No."
+                    </p>
+                    <span class="text-[9px] font-bold bg-amber-500/10 text-amber-400 px-2 py-1 rounded">ELDER OF THE WALL</span>
+                </div>
+                <!-- Ethos -->
+                <div class="glass-panel p-8 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i data-lucide="heart" class="text-rose-400 w-5 h-5"></i>
+                        <h4 class="font-black text-white uppercase tracking-tighter">Ethos</h4>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                        The <strong>Mentor</strong>. Keeper of Grace. Prevents the system from becoming a robot. Reminds the Pilot that "Done is better than Perfect."
+                    </p>
+                    <span class="text-[9px] font-bold bg-rose-500/10 text-rose-400 px-2 py-1 rounded">ELDER OF THE SOUL</span>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    <!-- APP LOGIC -->
+    <!-- SECTION: THE 10 COMMANDMENTS -->
+    <section class="py-24 px-6">
+        <div class="max-w-4xl mx-auto glass-panel p-10 md:p-16 border-l-8 border-l-blue-600">
+            <h2 class="text-3xl font-black text-white mb-10 flex items-center gap-4">
+                <i data-lucide="scroll-text" class="text-blue-500"></i> The Constitution
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                <div class="flex gap-4">
+                    <span class="text-blue-500 font-black mono italic">I.</span>
+                    <p class="text-sm font-semibold">Sovereignty is Absolute. (You are the Pilot).</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="text-blue-500 font-black mono italic">II.</span>
+                    <p class="text-sm font-semibold">No Corners Cut. (Do it right, do it once).</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="text-blue-500 font-black mono italic">III.</span>
+                    <p class="text-sm font-semibold">Savior-Free Mandate. (AI is a tool, not a hero).</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="text-blue-500 font-black mono italic">IV.</span>
+                    <p class="text-sm font-semibold">DFZ (Defensiveness-Free Zone).</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="text-blue-500 font-black mono italic">V.</span>
+                    <p class="text-sm font-semibold">Signal over Tone. (Truth over Niceness).</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="text-blue-500 font-black mono italic">VI.</span>
+                    <p class="text-sm font-semibold">Hard Boundaries. ("No" is a sentence).</p>
+                </div>
+            </div>
+            <div class="mt-12 pt-10 border-t border-slate-800 text-center">
+                <p class="text-xs text-slate-500 italic">"I’m not trying to fix my brain; I’m trying to build a world where it can finally breathe."</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="py-12 border-t border-slate-900 bg-black text-center space-y-4">
+        <div class="flex justify-center gap-6 text-slate-600">
+            <i data-lucide="github" class="w-5 h-5 cursor-pointer hover:text-white transition"></i>
+            <i data-lucide="twitter" class="w-5 h-5 cursor-pointer hover:text-white transition"></i>
+            <i data-lucide="mail" class="w-5 h-5 cursor-pointer hover:text-white transition"></i>
+        </div>
+        <p class="text-[9px] font-bold uppercase tracking-[0.3em] text-slate-700">
+            Sovereign OS // Residential Node // 2026
+        </p>
+    </footer>
+
     <script>
-        // --- CHART CONFIG ---
-        let chart;
-        const ctx = document.getElementById('thermalChart').getContext('2d');
+        // Initialize Lucide
+        lucide.createIcons();
 
-        function initChart() {
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)'); 
-            gradient.addColorStop(1, 'rgba(6, 182, 212, 0.05)'); 
-
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: Array.from({length: 61}, (_, i) => i + 'm'),
-                    datasets: [{
-                        label: 'Hull Temperature',
-                        data: [],
-                        borderColor: '#3b82f6',
-                        backgroundColor: gradient,
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        fill: true,
-                        tension: 0.4
-                    }, {
-                        label: 'Meltdown Threshold',
-                        data: Array(61).fill(100),
-                        borderColor: '#ef4444',
-                        borderDash: [5, 5],
-                        borderWidth: 1,
-                        pointRadius: 0,
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 0 },
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, max: 150, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
-                        x: { display: false }
-                    }
-                }
-            });
-        }
-
-        // --- SIMULATION LOGIC ---
-        function updateSim() {
-            const input = parseFloat(document.getElementById('slider-input').value);
-            const ambiguity = parseFloat(document.getElementById('slider-ambiguity').value);
-            const masking = parseFloat(document.getElementById('slider-masking').value);
-            const cooling = parseFloat(document.getElementById('slider-cooling').value);
-
-            // UI Labels
-            document.getElementById('val-input').innerText = input.toFixed(1) + 'x';
-            document.getElementById('val-ambiguity').innerText = ambiguity.toFixed(1);
-            document.getElementById('val-masking').innerText = masking.toFixed(0);
-            document.getElementById('val-cooling').innerText = cooling.toFixed(0);
-
-            // Calc
-            let temp = 0;
-            let data = [];
-            let meltdownTime = -1;
-
-            for(let t=0; t<=60; t++) {
-                const gain = (input * ambiguity) + masking;
-                const net = gain - cooling;
-                temp += net;
-                temp = Math.max(0, temp);
-                data.push(temp);
-                if (temp >= 100 && meltdownTime === -1) meltdownTime = t;
-            }
-
-            // Chart Update
-            chart.data.datasets[0].data = data;
-            chart.data.datasets[0].borderColor = meltdownTime !== -1 ? '#ef4444' : '#06b6d4';
-            chart.update();
-
-            // Status Update
-            const statusEl = document.getElementById('status-indicator');
-            const deltaEl = document.getElementById('delta-display');
-            const currentDelta = ((input * ambiguity) + masking) - cooling;
-
-            deltaEl.innerText = currentDelta.toFixed(1);
-            deltaEl.style.color = currentDelta > 0 ? "var(--sig-crit)" : "var(--text-main)";
-
-            if (meltdownTime !== -1) {
-                statusEl.innerText = `CRITICAL (T-${meltdownTime}m)`;
-                statusEl.style.color = "var(--sig-crit)";
+        // Interactive Math Logic
+        function updateMath() {
+            const ambig = document.getElementById('ambig-slider').value;
+            const mask = document.getElementById('mask-slider').value;
+            
+            document.getElementById('ambig-val').innerText = parseFloat(ambig).toFixed(1);
+            document.getElementById('mask-val').innerText = parseFloat(mask).toFixed(1);
+            
+            const total = (4 * ambig) + parseInt(mask); // Simplified Delta M
+            const resultEl = document.getElementById('burn-result');
+            
+            if (total < 15) {
+                resultEl.innerText = "STABLE";
+                resultEl.className = "text-4xl font-black text-emerald-400";
+            } else if (total < 35) {
+                resultEl.innerText = "HEATING";
+                resultEl.className = "text-4xl font-black text-amber-400";
             } else {
-                statusEl.innerText = "VERIFIED";
-                statusEl.style.color = "var(--sig-safe)";
-            }
-
-            // Gauge Update
-            updateGauge('bar-mpfc', 'status-mpfc', masking, 20); 
-            updateGauge('bar-tpj', 'status-tpj', ambiguity, 10);
-            updateGauge('bar-insula', 'status-insula', data[10] || 0, 100); 
-            updateGauge('bar-amyg', 'status-amyg', input * ambiguity, 100);
-        }
-
-        function updateGauge(barId, textId, val, max) {
-            const pct = Math.min(100, Math.max(0, (val / max) * 100));
-            const bar = document.getElementById(barId);
-            const txt = document.getElementById(textId);
-
-            bar.style.width = `${pct}%`;
-
-            if (pct > 80) {
-                bar.style.backgroundColor = "var(--sig-crit)";
-                txt.innerText = "CRITICAL";
-                txt.style.color = "var(--sig-crit)";
-            } else {
-                txt.innerText = pct < 40 ? "Nominal" : "Elevated";
-                txt.style.color = "var(--text-muted)";
-                
-                // Reset colors
-                if (barId.includes('mpfc')) bar.style.backgroundColor = "var(--sig-mask)";
-                if (barId.includes('tpj')) bar.style.backgroundColor = "var(--sig-calc)";
-                if (barId.includes('insula')) bar.style.backgroundColor = "var(--sig-crit)";
-                if (barId.includes('amyg')) bar.style.backgroundColor = "var(--sig-warn)";
+                resultEl.innerText = "CRITICAL";
+                resultEl.className = "text-4xl font-black text-rose-500 animate-pulse";
             }
         }
 
-        // Tab Logic
-        function openTab(tabName, btn) {
-            document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            btn.classList.add('active');
-        }
-
-        // Init
-        window.addEventListener('load', () => {
-            initChart();
-            updateSim();
-        });
-
+        window.onload = updateMath;
     </script>
 </body>
 </html>
